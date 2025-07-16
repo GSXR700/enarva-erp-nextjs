@@ -1,0 +1,923 @@
+// ==================================================================
+// FICHIER PRISMA ENARVA v6.0 - ERP AVANCÉ AVEC LOGIQUE MÉTIER COMPLÈTE
+// CORRECTED & UPDATED VERSION
+// ==================================================================
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==================================================================
+// ÉNUMÉRATIONS
+// ==================================================================
+
+enum LeadStatus {
+  new_lead
+  to_qualify
+  waiting_info
+  qualified
+  visit_scheduled
+  visit_done
+  quote_sent
+  quote_accepted
+  quote_refused
+  intervention_planned
+  intervention_done
+  pending_payment
+  paid_official
+  paid_cash
+  follow_up_sent
+  client_converted
+  lead_lost
+  client_paused
+  client_issue
+  outsourced
+  product_only
+  contract_signed
+  under_contract
+  subcontractor_lead
+  product_supplier
+  affiliate_lead
+}
+
+enum LeadCanal {
+  WHATSAPP
+  SITE_WEB
+  FACEBOOK
+  APPORTEUR_AFFAIRES
+  APPEL_TELEPHONIQUE
+  MANUEL
+}
+
+enum LeadType {
+  BtoC
+  BtoB
+  CONTRAT
+  SOUS_TRAITANCE
+  PRODUIT
+}
+
+enum ClientStatus {
+  ACTIF
+  SOUS_CONTRAT
+  EN_LITIGE
+  INACTIF
+}
+
+enum ClientType {
+  PARTICULIER
+  ENTREPRISE
+  INSTITUTION
+}
+
+enum PaymentMode {
+  CASH
+  VIREMENT
+  CHEQUE
+}
+
+enum JuridicState {
+  LEGAL
+  BLACK
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  FINANCE
+  FIELD_WORKER
+  USER
+}
+
+enum NotificationType {
+  MESSAGE
+  ALERT
+  INFO
+  TASK
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum NotificationStatus {
+  PENDING
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum EmployeeType {
+  JOURNALIER
+  CDI
+  POOL_EXTRA
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REFUSED
+}
+
+enum OrderStatus {
+  PENDING
+  DELIVERED
+  CANCELED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  LATE
+  CANCELLED
+}
+
+enum MissionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  VALIDATED
+  CANCELLED
+}
+
+enum ObservationType {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum DocumentType {
+  BVT    // Bon de Visite Technique
+  BIS    // Bon d'Intervention de Service
+  BCRN   // Bon de Compte Rendu de Nettoyage
+  BRT    // Bon de Rapport Technique
+  BST    // Bon de Sous-Traitance
+  OS_ST  // Ordre de Service Sous-Traitant
+  PV_ST  // Procès-Verbal Sous-Traitant
+  BCP    // Bon de Commande Produit
+  BSS    // Bon de Sortie de Stock
+  BLP    // Bon de Livraison Produit
+  FNC    // Fiche de Non-Conformité
+  SLA    // Service Level Agreement
+  BAE    // Bon d'Avance sur Employé
+  FP     // Fiche de Paie
+  RA     // Relevé d'Activité
+  PVM    // Procès-Verbal de Mission
+  BES    // Bon d'Entrée en Stock
+  BTI    // Bon de Transfert Interne
+  BRS    // Bon de Retour de Stock
+  DRP    // Demande de Remboursement Produit
+  BCA    // Bon de Commande d'Achat
+  RP     // Rapport de Performance
+  AVR    // Avis de Réception
+  FM     // Fiche de Maintenance
+  FAS    // Fiche d'Analyse de Service
+  BP     // Bon de Passage
+  CMD    // Commande
+  HSE    // Hygiène Sécurité Environnement
+  CTA    // Contrat d'Abonnement
+  RI     // Rapport d'Intervention
+  Q      // Devis (Quote)
+  PO     // Bon de Commande (Purchase Order)
+  WO     // Ordre de Travail (Work Order)
+  BL     // Bon de Livraison
+  BCa    // Bon de Caisse
+  BCol   // Bon de Collecte
+  INV    // Facture (Invoice)
+  CR     // Avoir (Credit)
+  PAY    // Paiement
+  TS     // Feuille de Temps (Time Sheet)
+  CT     // Contrat
+}
+
+enum PayRateType {
+  PER_HOUR
+  PER_DAY
+  PER_MISSION
+  FIXED_MONTHLY
+}
+
+enum EquipmentStatus {
+  IN_SERVICE
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketSAVStatus {
+  OUVERT
+  EN_COURS_ANALYSE
+  ACTION_PROPOSEE
+  RESOLU
+  CLOS
+}
+
+// ==================================================================
+// MODÈLES PRINCIPAUX
+// ==================================================================
+
+model Lead {
+  id                   String       @id @default(auto()) @map("_id") @db.ObjectId
+  nom                  String
+  telephone            String?
+  email                String?
+  canal                LeadCanal    @default(MANUEL)
+  statut               LeadStatus   @default(new_lead)
+  type                 LeadType     @default(BtoC)
+  source               String?
+  date_creation        DateTime     @default(now())
+  date_derniere_action DateTime     @updatedAt
+  commentaire          String?
+  converti_en_client   Boolean      @default(false)
+  
+  // Relations
+  client_id            String?      @db.ObjectId
+  client               Client?      @relation("LeadToClient", fields: [client_id], references: [id], onDelete: SetNull)
+  
+  assignedToId         String?      @db.ObjectId
+  assignedTo           User?        @relation("UserLeads", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  generatedDocuments   GeneratedDocument[] @relation("DocToLead")
+}
+
+model Client {
+  id                      String        @id @default(auto()) @map("_id") @db.ObjectId
+  nom                     String
+  type                    ClientType
+  secteur                 String?
+  email                   String?
+  telephone               String?
+  adresse                 String?
+  statut                  ClientStatus  @default(ACTIF)
+  date_entree             DateTime      @default(now())
+  contact_secondaire      String?
+  contrat_en_cours        Boolean       @default(false)
+  mode_paiement_prefere   PaymentMode?
+
+  // Relations
+  historique_leads        Lead[]            @relation("LeadToClient")
+  quotes                  Quote[]
+  orders                  Order[]
+  invoices                Invoice[]
+  qualityChecks           QualityCheck[]
+  tickets_sav             TicketSAV[]       @relation("SavToClient")
+  contrat                 Contrat?
+  generatedDocuments      GeneratedDocument[] @relation("DocToClient")
+}
+
+model TicketSAV {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  ticketNumber      String          @unique
+  raison            String
+  description       String
+  statut            TicketSAVStatus @default(OUVERT)
+  photos_litige     String[]
+  photos_resolution String[]
+  solutionProposee  String?
+  createdAt         DateTime        @default(now())
+  resolvedAt        DateTime?
+
+  // Relations
+  clientId          String          @db.ObjectId
+  client            Client          @relation("SavToClient", fields: [clientId], references: [id])
+  missionId         String          @db.ObjectId
+  mission           Mission         @relation(fields: [missionId], references: [id])
+  resoluParId       String?         @db.ObjectId
+  resoluPar         User?           @relation("UserResolvedSAV", fields: [resoluParId], references: [id])
+}
+
+model Contrat {
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  numeroContrat    String     @unique
+  dateDebut        DateTime
+  dateFin          DateTime
+  frequence        String
+  montantMensuel   Float
+  documentUrl      String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  // Relations
+  clientId         String     @unique @db.ObjectId
+  client           Client     @relation(fields: [clientId], references: [id])
+  contratAgents    ContratAgent[]
+
+}
+
+model ContratAgent {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  contratId  String     @db.ObjectId
+  agentId    String     @db.ObjectId
+  assignedAt DateTime   @default(now())
+
+  // Relations
+  contrat    Contrat    @relation(fields: [contratId], references: [id])
+  agent      Employee   @relation(fields: [agentId], references: [id])
+}
+
+model ChecklistTemplate {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  nom       String   @unique
+  taches    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  serviceId String?  @db.ObjectId
+  service   Service? @relation(fields: [serviceId], references: [id])
+}
+
+model MissionChecklist {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  taches    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  missionId String  @unique @db.ObjectId
+  mission   Mission @relation(fields: [missionId], references: [id])
+}
+
+model MissionProductUsage {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  quantite  Float
+  createdAt DateTime @default(now())
+  
+  // Relations
+  missionId String  @db.ObjectId
+  mission   Mission @relation(fields: [missionId], references: [id])
+  productId String  @db.ObjectId
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model GeneratedDocument {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  numero         String       @unique
+  type           DocumentType
+  dateGeneration DateTime     @default(now())
+  pdfUrl         String
+
+  // Relations (one document can be linked to multiple entities)
+  leadId         String?      @db.ObjectId
+  lead           Lead?        @relation("DocToLead", fields: [leadId], references: [id])
+  clientId       String?      @db.ObjectId
+  client         Client?      @relation("DocToClient", fields: [clientId], references: [id])
+  missionId      String?      @db.ObjectId
+  mission        Mission?     @relation("DocToMission", fields: [missionId], references: [id])
+  orderId        String?      @db.ObjectId
+  order          Order?       @relation("DocToOrder", fields: [orderId], references: [id])
+  
+  payAdvances    PayAdvance[]
+}
+
+// ==================================================================
+// MODÈLES UTILISATEUR & EMPLOYÉ
+// ==================================================================
+
+model User {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  name              String?
+  email             String?         @unique
+  password          String
+  image             String?
+  role              Role            @default(USER)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  isOnline          Boolean         @default(false)
+  lastSeen          DateTime?
+  lastKnownIp       String?
+  lastUserAgent     String?
+  currentLatitude   Float?
+  currentLongitude  Float?
+
+  // Relations
+  employee          Employee?
+  departmentId      String?         @db.ObjectId
+  department        Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  
+  assignedLeads     Lead[]          @relation("UserLeads")
+  ticketsSavResolus TicketSAV[]     @relation("UserResolvedSAV")
+  
+  activityLogs      ActivityLog[]
+  notifications     Notification[]  @relation("UserNotifications")
+  sentNotifications Notification[]  @relation("SentNotifications")
+  conversationIDs   String[]        @db.ObjectId
+  conversations     Conversation[]  @relation(fields: [conversationIDs], references: [id])
+  sentMessages      Message[]       @relation("SentMessages")
+}
+
+model Employee {
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String              @unique @db.ObjectId
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName          String
+  lastName           String
+  phone              String?
+  type               EmployeeType        @default(JOURNALIER)
+  salaireDeBase      Float?
+  numeroCNSS         String?
+  numeroCIN          String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  
+  // Relations
+  defaultPayRateId   String?             @db.ObjectId
+  defaultPayRate     PayRate?            @relation(fields: [defaultPayRateId], references: [id])
+  
+  missions           Mission[]
+  timeLogs           TimeLog[]
+  payments           Payment[]
+  payrolls           Payroll[]
+  payAdvances        PayAdvance[]
+  reportedTickets    MaintenanceTicket[]
+  contratAgents      ContratAgent[]
+}
+
+model Department {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  users       User[]
+  services    Service[]
+}
+
+model Service {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  name         String     @unique
+  family       String
+  description  String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  // Relations
+  departmentId String     @db.ObjectId
+  department   Department @relation(fields: [departmentId], references: [id])
+  checklistTemplates ChecklistTemplate[]
+}
+
+// ==================================================================
+// MODÈLES MISSION & OPÉRATIONS
+// ==================================================================
+
+model Mission {
+  id                          String                  @id @default(auto()) @map("_id") @db.ObjectId
+  title                       String?
+  workOrderNumber             String?
+  status                      MissionStatus           @default(PENDING)
+  scheduledStart              DateTime
+  scheduledEnd                DateTime?
+  actualStart                 DateTime?
+  actualEnd                   DateTime?
+  notes                       String?
+  sentToSubcontractorAt       DateTime?
+  returnedFromSubcontractorAt DateTime?
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @updatedAt
+  
+  // Relations
+  orderId                     String?                 @db.ObjectId
+  order                       Order?                  @relation(fields: [orderId], references: [id])
+  assignedToId                String                  @db.ObjectId
+  assignedTo                  Employee                @relation(fields: [assignedToId], references: [id])
+  subcontractorId             String?                 @db.ObjectId
+  subcontractor               Subcontractor?          @relation(fields: [subcontractorId], references: [id])
+  
+  tickets_sav                 TicketSAV[]
+  checklist                   MissionChecklist?
+  produitsUtilises            MissionProductUsage[]
+  generatedDocuments          GeneratedDocument[]     @relation("DocToMission")
+  timeLogs                    TimeLog[]
+  observations                Observation[]
+  qualityCheck                QualityCheck?
+  attachments                 Attachment[]
+}
+
+model Subcontractor {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String    @unique
+  contact     String?
+  phone       String?
+  email       String?   @unique
+  address     String?
+  serviceType String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  missions    Mission[]
+}
+
+// ==================================================================
+// MODÈLES COMMANDE & FACTURATION
+// ==================================================================
+
+model Quote {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  quoteNumber  String       @unique
+  object       String?
+  date         DateTime     @default(now())
+  status       QuoteStatus  @default(DRAFT)
+  juridicState JuridicState @default(LEGAL)
+  items        Json
+  totalHT      Float
+  tva          Float
+  totalTTC     Float
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  // Relations
+  clientId     String       @db.ObjectId
+  client       Client       @relation(fields: [clientId], references: [id])
+  prestation   Prestation?
+  order        Order?
+}
+
+model Prestation {
+  id                  String  @id @default(auto()) @map("_id") @db.ObjectId
+  personnelMobilise   String?
+  equipementsUtilises String?
+  prestationsIncluses String?
+  delaiPrevu          String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  quoteId             String  @unique @db.ObjectId
+  quote               Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id                   String              @id @default(auto()) @map("_id") @db.ObjectId
+  orderNumber          String              @unique
+  date                 DateTime            @default(now())
+  status               OrderStatus         @default(PENDING)
+  items                Json
+  totalTTC             Float
+  refCommande          String?
+  orderedBy            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  
+  // Relations
+  clientId             String              @db.ObjectId
+  client               Client              @relation(fields: [clientId], references: [id])
+  quoteId              String              @unique @db.ObjectId
+  quote                Quote               @relation(fields: [quoteId], references: [id])
+  
+  missions             Mission[]
+  invoice              Invoice?
+  deliveryNote         DeliveryNote?
+  generatedDocuments   GeneratedDocument[] @relation("DocToOrder")
+}
+
+model Invoice {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceNumber String        @unique
+  date          DateTime
+  dueDate       DateTime
+  status        InvoiceStatus @default(DRAFT)
+  items         Json
+  totalHT       Float
+  tva           Float
+  totalTTC      Float
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  orderId       String        @unique @db.ObjectId
+  order         Order         @relation(fields: [orderId], references: [id])
+  clientId      String        @db.ObjectId
+  client        Client        @relation(fields: [clientId], references: [id])
+}
+
+model DeliveryNote {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  deliveryNoteNumber String   @unique
+  date               DateTime
+  items              Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // Relations
+  orderId            String   @unique @db.ObjectId
+  order              Order    @relation(fields: [orderId], references: [id])
+}
+
+// ==================================================================
+// MODÈLES PRODUIT & INVENTAIRE
+// ==================================================================
+
+model Product {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  designation String
+  pu_ht       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  missionUsages MissionProductUsage[]
+}
+
+// ==================================================================
+// MODÈLES PAIE & FINANCE
+// ==================================================================
+
+model PayRate {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        PayRateType
+  amount      Float
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  employees   Employee[]
+}
+
+model PayAdvance {
+  id         String            @id @default(auto()) @map("_id") @db.ObjectId
+  amount     Float
+  date       DateTime
+  reason     String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  
+  // Relations
+  employeeId String            @db.ObjectId
+  employee   Employee          @relation(fields: [employeeId], references: [id])
+  documentId String?           @db.ObjectId
+  document   GeneratedDocument? @relation(fields: [documentId], references: [id])
+}
+
+model TimeLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  startTime  DateTime
+  endTime    DateTime?
+  duration   Int?
+  earnings   Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations
+  employeeId String   @db.ObjectId
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  missionId  String   @db.ObjectId
+  mission    Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  payrollId  String?  @db.ObjectId
+  payroll    Payroll? @relation(fields: [payrollId], references: [id])
+}
+
+model Payment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount     Float
+  date       DateTime
+  type       String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relations
+  employeeId String   @db.ObjectId
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  payrollId  String?  @db.ObjectId
+  payroll    Payroll? @relation(fields: [payrollId], references: [id])
+}
+
+model Payroll {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  payrollNumber String?
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalDue      Float
+  totalPaid     Float
+  balance       Float
+  status        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  employeeId    String    @db.ObjectId
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  timeLogs      TimeLog[]
+  payments      Payment[]
+}
+
+// ==================================================================
+// MODÈLES QUALITÉ & OBSERVATIONS
+// ==================================================================
+
+model QualityCheck {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  checklist          Json
+  score              Int
+  clientSignatureUrl String?
+  photosUrls         String[]
+  checkedAt          DateTime @default(now())
+  
+  // Relations
+  missionId          String   @unique @db.ObjectId
+  mission            Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  clientId           String   @db.ObjectId
+  client             Client   @relation(fields: [clientId], references: [id])
+}
+
+model Observation {
+  id         String          @id @default(auto()) @map("_id") @db.ObjectId
+  type       ObservationType
+  content    String
+  mediaUrl   String?
+  reportedAt DateTime        @default(now())
+  
+  // Relations
+  missionId  String          @db.ObjectId
+  mission    Mission         @relation(fields: [missionId], references: [id])
+}
+
+model Attachment {
+  id                     String    @id @default(auto()) @map("_id") @db.ObjectId
+  documentUrl            String
+  validatedAt            DateTime  @default(now())
+  supervisorSignatureUrl String?
+  clientSignatureUrl     String?
+  
+  // Relations
+  missionId              String    @db.ObjectId
+  mission                Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+}
+
+// ==================================================================
+// MODÈLES MAINTENANCE & ÉQUIPEMENT
+// ==================================================================
+
+model Equipment {
+  id           String              @id @default(auto()) @map("_id") @db.ObjectId
+  name         String              @unique
+  type         String
+  serialNumber String?             @unique
+  purchaseDate DateTime?
+  status       EquipmentStatus     @default(IN_SERVICE)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  
+  // Relations
+  tickets      MaintenanceTicket[]
+}
+
+model MaintenanceTicket {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  ticketNumber String         @unique
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  resolvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  // Relations
+  equipmentId  String         @db.ObjectId
+  equipment    Equipment      @relation(fields: [equipmentId], references: [id])
+  reportedById String         @db.ObjectId
+  reportedBy   Employee       @relation(fields: [reportedById], references: [id])
+}
+
+// ==================================================================
+// MODÈLES DÉPENSES & FOURNISSEURS
+// ==================================================================
+
+model Supplier {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String    @unique
+  contact   String?
+  phone     String?
+  email     String?   @unique
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  expenses  Expense[]
+}
+
+model Expense {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  amount      Float
+  date        DateTime
+  category    String
+  description String
+  receiptUrl  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  supplierId  String?   @db.ObjectId
+  supplier    Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+}
+
+// ==================================================================
+// MODÈLES COMMUNICATION & NOTIFICATIONS
+// ==================================================================
+
+model Conversation {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  participantIDs String[]  @db.ObjectId
+  
+  // Relations
+  participants   User[]    @relation(fields: [participantIDs], references: [id])
+  messages       Message[]
+}
+
+model Message {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  content        String
+  createdAt      DateTime     @default(now())
+  readAt         DateTime?
+  
+  // Relations
+  senderId       String       @db.ObjectId
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  conversationId String       @db.ObjectId
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String             @id @default(auto()) @map("_id") @db.ObjectId
+  message   String
+  link      String?
+  type      NotificationType   @default(INFO)
+  priority  NotificationPriority @default(MEDIUM)
+  status    NotificationStatus @default(PENDING)
+  read      Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  expiresAt DateTime?
+  
+  // Relations
+  userId    String   @db.ObjectId
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  senderId  String?  @db.ObjectId
+  sender    User?    @relation("SentNotifications", fields: [senderId], references: [id])
+
+  @@index([userId, status, type])
+  @@index([createdAt])
+}
+
+// ==================================================================
+// MODÈLES SYSTÈME & LOGS
+// ==================================================================
+
+model ActivityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  action    String
+  timestamp DateTime @default(now())
+  details   Json?
+  
+  // Relations
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CompanyInfo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  companyName String   @default("Enarva SARL AU")
+  address     String?
+  phone       String?
+  email       String?
+  website     String?
+  if          String?
+  rc          String?
+  ice         String?
+  rib         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company_info")
+}

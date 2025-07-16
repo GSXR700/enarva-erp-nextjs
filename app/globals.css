@@ -1,0 +1,65 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ... (votre CSS existant) */
+
+@keyframes slide-in-bottom {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-in-bottom {
+  animation: slide-in-bottom 0.3s ease-out forwards;
+}
+
+@keyframes typing-bubble {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+/* --- NOUVEAU : Style pour la barre de défilement (Scrollbar) --- */
+
+/* Pour les navigateurs basés sur WebKit (Chrome, Safari, Edge, etc.) */
+
+/* La barre de défilement elle-même */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Le fond de la barre de défilement (la "piste") */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* La poignée de défilement */
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  /* La couleur par défaut est pour le mode clair */
+  background-color: #1d4ed8; /* Correspond à 'blue-700' de Tailwind */
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #1e40af; /* Correspond à 'blue-800' pour le survol */
+}
+
+/* --- Adaptation pour le Dark Mode --- */
+.dark ::-webkit-scrollbar-thumb {
+  /* La couleur pour le mode sombre, comme sur votre image */
+  background-color: #4a5568; /* Correspond à un gris neutre comme 'gray-600' */
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #718096; /* Correspond à un gris plus clair comme 'gray-500' */
+}
+
+
+/* Pour Firefox (nécessite des propriétés différentes) */
+* {
+  /* La couleur de la poignée et la couleur de la piste */
+  scrollbar-color: #1d4ed8 transparent;
+  scrollbar-width: thin;
+}
+
+.dark * {
+  scrollbar-color: #4a5568 transparent;
+}

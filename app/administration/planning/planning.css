@@ -1,0 +1,166 @@
+/* app/administration/planning/planning.css */
+
+/* -- VARS -- */
+:root {
+    --fc-border-color: #e5e7eb;
+    --fc-daygrid-bg-color: transparent;
+    --fc-today-bg-color: rgba(60, 80, 224, 0.1);
+    --fc-button-bg-color: #f9fafb;
+    --fc-button-text-color: #374151;
+    --fc-button-border-color: #e5e7eb;
+    --fc-button-hover-bg-color: #f3f4f6;
+    --fc-button-active-bg-color: #3C50E0;
+    --fc-text-color: #374151;
+    --fc-title-text-color: #111827;
+    --fc-header-text-color: #6b7280;
+}
+
+.dark {
+    --fc-border-color: #3e4144;
+    --fc-daygrid-bg-color: transparent;
+    --fc-today-bg-color: rgba(60, 80, 224, 0.15);
+    --fc-button-bg-color: #282a2c;
+    --fc-button-text-color: #e5e7eb;
+    --fc-button-border-color: #3e4144;
+    --fc-button-hover-bg-color: #3e4144;
+    --fc-button-active-bg-color: #3C50E0;
+    --fc-text-color: #a1a1aa;
+    --fc-title-text-color: #ffffff;
+    --fc-header-text-color: #a1a1aa;
+}
+
+/* -- GENERAL -- */
+.fc {
+    font-family: inherit;
+    font-size: 0.875rem;
+}
+.fc a {
+    color: inherit;
+}
+.fc-direction-ltr .fc-button-group > .fc-button:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.fc-direction-ltr .fc-button-group > .fc-button:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* -- TOOLBAR -- */
+.fc .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 1.5rem;
+    color: var(--fc-title-text-color);
+}
+.fc .fc-toolbar-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.fc .fc-button {
+    background: var(--fc-button-bg-color);
+    color: var(--fc-button-text-color);
+    border: 1px solid var(--fc-button-border-color);
+    padding: 0.5rem 1rem;
+    text-transform: capitalize;
+    box-shadow: none;
+    transition: background-color 0.2s;
+}
+.fc .fc-button:hover, .fc .fc-button:focus {
+    background: var(--fc-button-hover-bg-color);
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    background: var(--fc-button-active-bg-color);
+    border-color: var(--fc-button-active-bg-color);
+    color: white;
+    box-shadow: none;
+}
+.fc .fc-icon {
+    font-size: 1em;
+}
+
+/* -- CALENDAR GRID -- */
+.fc .fc-view {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+.fc th {
+    font-weight: 500;
+}
+.fc-theme-standard th, .fc-theme-standard td {
+    border: 1px solid var(--fc-border-color);
+}
+.fc .fc-col-header-cell-cushion {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--fc-header-text-color);
+    text-transform: uppercase;
+}
+.fc .fc-daygrid-day-number {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+}
+.dark .fc .fc-day-other .fc-daygrid-day-top {
+    opacity: 0.3;
+}
+.fc .fc-day-today {
+    background-color: var(--fc-today-bg-color) !important;
+}
+
+/* -- TIMEGRID -- */
+.fc .fc-timegrid-slot-label {
+    color: var(--fc-text-color);
+}
+.fc .fc-timegrid-axis-frame {
+    justify-content: center;
+}
+.fc .fc-timegrid-axis-cushion {
+    font-size: 0.75rem;
+}
+.fc .fc-timegrid-now-indicator-line {
+    border-color: #ef4444;
+}
+.fc .fc-timegrid-now-indicator-arrow {
+    border-top-color: #ef4444;
+}
+
+/* -- EVENTS -- */
+.fc .fc-daygrid-event, .fc .fc-timegrid-event {
+    border-radius: 4px;
+    font-weight: 500;
+    padding: 2px 4px;
+    background-color: #3C50E0;
+    border-color: #3C50E0;
+}
+.fc-event-main-frame {
+    flex-direction: column;
+    align-items: flex-start;
+}
+.fc-event-time {
+    font-weight: 400;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+.fc-event-title-container {
+    font-size: 0.8rem;
+}
+
+/* -- LIST VIEW (MOBILE) -- */
+.fc-list-day-text, .fc-list-day-side-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fc-title-text-color);
+}
+.fc .fc-list-event:hover td {
+    background-color: rgba(60, 80, 224, 0.05);
+}
+.dark .fc .fc-list-event:hover td {
+    background-color: rgba(60, 80, 224, 0.1);
+}
+.fc .fc-list-event-title a {
+    color: var(--fc-text-color);
+    font-weight: 500;
+}
+.fc .fc-list-event-dot {
+    border-color: #3C50E0;
+}

@@ -1,0 +1,34 @@
+// app/administration/chat/page.tsx
+import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { ChatLayout } from "./components/ChatLayout";
+import { notFound } from "next/navigation";
+
+export default async function ChatPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) return notFound();
+  
+  // Récupérer tous les utilisateurs pour pouvoir démarrer une nouvelle conversation
+  const allUsers = await prisma.user.findMany({
+    where: {
+      id: {
+        not: session.user.id, // Exclure l'utilisateur actuel
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  });
+
+  return (
+    // On utilise une hauteur calculée pour que le chat prenne tout l'espace vertical disponible
+    <div className="h-[calc(100vh-150px)]">
+      <ChatLayout allUsers={allUsers} />
+    </div>
+  );
+}

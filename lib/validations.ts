@@ -71,59 +71,39 @@ export type QuoteFormData = z.infer<typeof quoteFormSchema>;
 const PASSWORD_MIN_LENGTH = 8;
 const PHONE_REGEX = /^(?:\+212|0)[567]\d{8}$/;
 
-export const employeeFormSchema = z
-  .object({
+export const employeeFormSchema = z.object({
     id: z.string().optional(),
-    firstName: z.string().trim().min(1, "Le prénom est requis"),
-    lastName: z.string().trim().min(1, "Le nom est requis"),
-    email: z.string().trim().email("L'adresse email n'est pas valide").toLowerCase(),
-    phone: z.string()
-      .trim()
-      .regex(PHONE_REGEX, "Le numéro de téléphone doit être un numéro marocain valide")
-      .optional()
-      .nullable(),
-    role: z.nativeEnum(Role).describe("Le rôle sélectionné n'est pas valide"),
-    type: z.nativeEnum(EmployeeType).describe("Le type d'employé sélectionné n'est pas valide"),
-    departmentId: z.string().min(1, "Le département est requis"),
-    defaultPayRateId: z.string().optional().nullable(),
-    salaireDeBase: z.string()
-      .refine(
-        (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) > 0),
-        "Le salaire de base doit être un nombre positif"
-      )
-      .optional()
-      .nullable(),
-    numeroCNSS: z.string()
-      .trim()
-      .regex(/^\d{8,}$/, "Le numéro CNSS doit contenir au moins 8 chiffres")
-      .optional()
-      .nullable(),
-    numeroCIN: z.string()
-      .trim()
-      .regex(/^[A-Z]{1,2}\d{5,6}$/, "Le format du CIN n'est pas valide")
-      .optional()
-      .nullable(),
-    password: z.string()
-      .min(PASSWORD_MIN_LENGTH, `Le mot de passe doit faire au moins ${PASSWORD_MIN_LENGTH} caractères`)
-      .regex(/[A-Z]/, "Le mot de passe doit contenir au moins une majuscule")
-      .regex(/[a-z]/, "Le mot de passe doit contenir au moins une minuscule")
-      .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
-      .optional(),
+    firstName: z.string().min(2, { message: "Le prénom doit contenir au moins 2 caractères." }),
+    lastName: z.string().min(2, { message: "Le nom de famille doit contenir au moins 2 caractères." }),
+    email: z.string().email({ message: "Veuillez entrer une adresse email valide." }),
+    phone: z.string().optional(),
+    role: z.nativeEnum(Role),
+    type: z.nativeEnum(EmployeeType),
+    departmentId: z.string().optional(),
+    defaultPayRateId: z.string().optional(),
+    salaireDeBase: z.string().optional(),
+    numeroCNSS: z.string().optional(),
+    numeroCIN: z.string().optional(),
+    password: z.string().optional(),
     confirmPassword: z.string().optional(),
-  })
-  .refine(
-    (data) => data.password === data.confirmPassword,
-    {
-      message: "Les mots de passe ne correspondent pas",
-      path: ["confirmPassword"],
+}).refine(data => {
+    // If a password is provided, confirmPassword must match.
+    if (data.password) {
+        return data.password === data.confirmPassword;
     }
-  )
-  .refine(
-    (data) => !!data.id || !!data.password,
-    {
-      message: "Le mot de passe est requis pour un nouvel employé",
-      path: ["password"],
+    return true;
+}, {
+    message: "Les mots de passe ne correspondent pas.",
+    path: ["confirmPassword"],
+}).refine(data => {
+    // If it's a new user (no id), a password is required.
+    if (!data.id && !data.password) {
+        return false;
     }
-  );
+    return true;
+}, {
+    message: "Le mot de passe est requis pour un nouvel employé.",
+    path: ["password"],
+});
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;

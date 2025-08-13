@@ -8,13 +8,16 @@ import { revalidatePath } from "next/cache";
 export async function saveClient(formData: FormData) {
   const id = formData.get("id") as string;
   const data = {
-    // CORRECTION: Use the new field name 'nom'
-    nom: formData.get("nom") as string, 
+    nom: formData.get("nom") as string,
     email: formData.get("email") as string,
-    phone: formData.get("phone") as string,
-    address: formData.get("address") as string,
-    ice: formData.get("ice") as string,
-    // Add other new fields from the v6 schema here as you build the form
+    telephone: formData.get("telephone") as string || null,
+    adresse: formData.get("adresse") as string || null,
+    secteur: formData.get("secteur") as string || null,
+    contact_secondaire: formData.get("contact_secondaire") as string || null,
+    statut: formData.get("statut") as any || 'ACTIF',
+    type: formData.get("type") as any || 'ENTREPRISE',
+    mode_paiement_prefere: formData.get("mode_paiement_prefere") as any || null,
+    contrat_en_cours: formData.get("contrat_en_cours") === 'true',
   };
 
   try {
@@ -26,9 +29,9 @@ export async function saveClient(formData: FormData) {
     } else {
       await prisma.client.create({
         data: {
-            ...data,
-            // Ensure required enum fields have default values if not in form
-            type: 'ENTREPRISE', // Example default
+          ...data,
+          type: data.type || 'ENTREPRISE',
+          statut: data.statut || 'ACTIF',
         },
       });
     }

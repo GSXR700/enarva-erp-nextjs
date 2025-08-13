@@ -1,92 +1,51 @@
-// enarva-nextjs-dashboard-app/services/missionService.ts
-import prisma from "@/lib/prisma";
-import { Employee, Order, MissionStatus, User, Prisma } from "@prisma/client";
-import { createAndEmitNotification } from "@/lib/notificationService";
+// app/services/missionService.ts
 
-// Type pour le client Prisma (soit global, soit transactionnel)
-type PrismaClient = Omit<Prisma.TransactionClient, "$commit" | "$rollback">;
+import { Order, Prisma } from "@prisma/client";
 
-type EmployeeWithDetails = Employee & {
-  missions: { scheduledEnd: Date }[];
-  user: User | null;
-};
+/**
+ * Creates one or more missions based on the details of a confirmed order.
+ * This function is designed to be called from within a Prisma transaction.
+ * @param order - The order object for which to create missions.
+ * @param tx - The Prisma transaction client.
+ */
+export async function createMissionsFromOrder(
+  order: Order,
+  tx: Prisma.TransactionClient
+) {
+  // Basic validation
+  if (!order.clientId) {
+    throw new Error("Client ID is missing from the order.");
+  }
 
-async function findLeastBusyEmployee(tx: PrismaClient): Promise<EmployeeWithDetails | null> {
-  const employees = await tx.employee.findMany({
-    include: {
-      user: true, 
-      missions: {
-        where: {
-          status: { in: [MissionStatus.PENDING, MissionStatus.IN_PROGRESS] },
-        },
-        orderBy: { scheduledEnd: 'desc' }
-      },
+  // For now, we create one single mission per order.
+  // In the future, this logic could be expanded to create multiple missions
+  // based on the items or services in the order.
+
+  // A default employee must be assigned. In a real scenario, this could be
+  // determined by availability, skills, or a manager's manual assignment.
+  // We'll fetch the first available FIELD_WORKER for this example.
+  const fieldWorker = await tx.employee.findFirst({
+    where: { user: { role: 'FIELD_WORKER' } },
+  });
+
+  if (!fieldWorker) {
+    // If no field worker is available, the mission cannot be created.
+    // The transaction will be rolled back.
+    throw new Error("No available field worker to assign the mission to. Please add an employee with the FIELD_WORKER role.");
+  }
+
+  // Create the mission
+  await tx.mission.create({
+    data: {
+      title: `Mission pour commande ${order.orderNumber}`,
+      orderId: order.id,
+      assignedToId: fieldWorker.id, // Assign to the found field worker
+      status: 'PENDING',
+      // Schedule the mission to start 24 hours from now by default.
+      // This should be adjusted based on business rules or user input.
+      scheduledStart: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
+      // End time can be calculated based on the start time or service duration
+      scheduledEnd: new Date(new Date().getTime() + (24 + 8) * 60 * 60 * 1000), // Example: 8-hour duration
     },
   });
-
-  if (employees.length === 0) return null;
-
-  return employees.reduce((prev, curr) => 
-    (prev.missions.length < curr.missions.length) ? prev : curr
-  );
-}
-
-function getNextAvailableSlot(employee: EmployeeWithDetails): Date {
-    const lastMission = employee.missions[0]; 
-    if (!lastMission) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(8, 0, 0, 0);
-        return tomorrow;
-    }
-    let nextStart = new Date(lastMission.scheduledEnd);
-    if (nextStart.getHours() >= 18) {
-        nextStart.setDate(nextStart.getDate() + 1);
-        nextStart.setHours(8, 0, 0, 0);
-    }
-    return nextStart;
-}
-
-export async function createMissionsFromOrder(order: Order, tx: PrismaClient) { // Accepte le client de transaction
-  console.log(`Début de la création de mission pour la commande ${order.orderNumber}...`);
-
-  const bestEmployee = await findLeastBusyEmployee(tx);
-
-  if (!bestEmployee) {
-    throw new Error("Aucun employé disponible trouvé. Impossible d'assigner la mission.");
-  }
-
-  console.log(`Employé le moins chargé trouvé: ${bestEmployee.firstName} avec ${bestEmployee.missions.length} mission(s) active(s).`);
-
-  const client = await tx.client.findUnique({ where: { id: order.clientId }});
-  if (!client) {
-    throw new Error(`Client avec ID ${order.clientId} introuvable.`);
-  }
-
-  const scheduledStart = getNextAvailableSlot(bestEmployee);
-  const scheduledEnd = new Date(scheduledStart.getTime() + 2 * 60 * 60 * 1000);
-
-  console.log(`Créneau trouvé : de ${scheduledStart.toLocaleString('fr-FR')} à ${scheduledEnd.toLocaleString('fr-FR')}`);
-
-  const mission = await tx.mission.create({
-    data: {
-      orderId: order.id,
-      assignedToId: bestEmployee.id,
-      scheduledStart,
-      scheduledEnd,
-      status: 'PENDING',
-      notes: `Mission générée et planifiée automatiquement pour la commande client ${order.refCommande}.`
-    }
-  });
-
-  if (bestEmployee.user) {
-    await createAndEmitNotification({
-      userId: bestEmployee.user.id,
-      message: `Nouvelle mission assignée : Commande <b>${order.orderNumber}</b> chez <b>${client.name}</b>.`,
-      link: `/mobile` 
-    });
-  }
-
-  console.log(`Mission ${mission.id} créée et notifiée à ${bestEmployee.firstName}.`);
-  return mission;
 }

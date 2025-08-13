@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/payroll/components/PayrollEmployeeList.tsx
+// app/administration/payroll/components/PayrollEmployeeList.tsx
 "use client";
 
 import type { Employee, User } from "@prisma/client";

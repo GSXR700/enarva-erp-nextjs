@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/settings/components/SettingsTabs.tsx
+// app/administration/settings/components/SettingsTabs.tsx
 "use client";
 
 import { useState } from "react";
@@ -8,14 +8,14 @@ import { CompanyInfoForm } from "./CompanyInfoForm";
 import { UserManagement } from "./UserManagement";
 import { PayRateManagement } from "./PayRateManagement";
 import { DepartmentManagement } from "./DepartmentManagement";
-import { ServiceManagement } from "./ServiceManagement"; // Importer le nouveau composant
+import { ServiceManagement } from "./ServiceManagement";
 
 interface SettingsTabsProps {
   users: User[];
   companyInfo: CompanyInfo;
   payRates: PayRate[];
   departments: Department[];
-  services: Service[]; // Ajouter les services aux props
+  services: Service[];
 }
 
 export function SettingsTabs({ users, companyInfo, payRates, departments, services }: SettingsTabsProps) {
@@ -26,7 +26,7 @@ export function SettingsTabs({ users, companyInfo, payRates, departments, servic
     { id: 'company', label: 'Société' },
     { id: 'staff', label: 'Utilisateurs' },
     { id: 'organization', label: 'Organisation' },
-    { id: 'services', label: 'Services' }, 
+    { id: 'services', label: 'Services' },
     { id: 'rates', label: 'Tarification' },
   ];
 

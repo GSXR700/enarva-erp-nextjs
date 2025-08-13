@@ -17,41 +17,113 @@ generator client {
 // ==================================================================
 
 enum LeadStatus {
+  // PHASE 1: Acquisition & Qualification
   new_lead
   to_qualify
   waiting_info
   qualified
+
+  // PHASE 2: Pré-vente / Devis
   visit_scheduled
   visit_done
   quote_sent
   quote_accepted
   quote_refused
+
+  // PHASE 3: Intervention & Livraison
   intervention_planned
+  intervention_in_progress
   intervention_done
+  quality_control
+  client_to_confirm_end
+  client_confirmed
+  delivery_planned
+  delivery_done
+  signed_delivery_note
+
+  // PHASE 4: Paiement
   pending_payment
   paid_official
   paid_cash
+  refunded
+  pending_refund
+
+  // PHASE 5: Suivi / SAV / Upsell
   follow_up_sent
-  client_converted
-  lead_lost
-  client_paused
+  upsell_in_progress
+  upsell_converted
+  rework_planned
+  rework_done
+  under_warranty
+  after_sales_service
+
+  // PHASE 6: Problèmes / Anomalies
   client_issue
-  outsourced
-  product_only
+  in_dispute
+  client_paused
+  lead_lost
+  canceled_by_client
+  canceled_by_enarva
+  internal_review
+  awaiting_parts
+
+  // PHASE 7: Contrats / Sous-traitance
   contract_signed
   under_contract
-  subcontractor_lead
+  subcontracted
+  outsourced
+  waiting_third_party
+
+  // PHASE 8: Produits / Leads externes
+  product_only
   product_supplier
+  delivery_only
   affiliate_lead
+  subcontractor_lead
 }
 
 enum LeadCanal {
+  // Canaux Digitaux - Réseaux & Plateformes
   WHATSAPP
-  SITE_WEB
   FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  GOOGLE_MAPS
+  GOOGLE_SEARCH
+  SITE_WEB
+  FORMULAIRE_SITE
+  MARKETPLACE
+  YOUTUBE
+  EMAIL
+
+  // Canaux Humains - Relations Directes
   APPORTEUR_AFFAIRES
+  COMMERCIAL_TERRAIN
+  SALON_PROFESSIONNEL
+  PARTENARIAT
+  RECOMMANDATION_CLIENT
+  VISITE_BUREAU
+  EMPLOYE_ENARVA
+
+  // Canaux Téléphoniques
   APPEL_TELEPHONIQUE
+  SMS
+  NUMERO_SUR_PUB
+
+  // Canaux Publicitaires - Médias
+  AFFICHE
+  FLYER
+  ENSEIGNE
+  VOITURE_SIGLEE
+  RADIO
+  ANNONCE_PRESSE
+  TELE
+
+  // Autres Canaux
   MANUEL
+  SOURCING_INTERNE
+  PORTE_A_PORTE
+  CHANTIER_EN_COURS
 }
 
 enum LeadType {
@@ -146,6 +218,7 @@ enum MissionStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+  APPROBATION 
   VALIDATED
   CANCELLED
 }
@@ -248,8 +321,11 @@ model Lead {
   statut               LeadStatus   @default(new_lead)
   type                 LeadType     @default(BtoC)
   source               String?
+  quoteObject          String?
   date_creation        DateTime     @default(now())
   date_derniere_action DateTime     @updatedAt
+  date_cloture         DateTime?
+  date_intervention    DateTime?
   commentaire          String?
   converti_en_client   Boolean      @default(false)
   
@@ -260,6 +336,9 @@ model Lead {
   assignedToId         String?      @db.ObjectId
   assignedTo           User?        @relation("UserLeads", fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  subcontractorAsSourceId String?      @db.ObjectId
+  subcontractorAsSource     Subcontractor? @relation("LeadToSubcontractorSource", fields: [subcontractorAsSourceId], references: [id], onDelete: SetNull)
+  
   generatedDocuments   GeneratedDocument[] @relation("DocToLead")
 }
 
@@ -520,18 +599,20 @@ model Mission {
 }
 
 model Subcontractor {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  name        String    @unique
-  contact     String?
-  phone       String?
-  email       String?   @unique
-  address     String?
-  serviceType String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String    @unique
+  contact         String?
+  phone           String?
+  email           String?   @unique
+  address         String?
+  serviceType     String
+  commissionRate  Float?    @default(0) // <-- ADD THIS LINE
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   
   // Relations
-  missions    Mission[]
+  missions        Mission[]
+  leads           Lead[]    @relation("LeadToSubcontractorSource") // <-- ADD THIS LINE
 }
 
 // ==================================================================

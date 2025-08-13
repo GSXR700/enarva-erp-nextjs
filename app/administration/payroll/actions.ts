@@ -1,9 +1,7 @@
-// enarva-nextjs-app/app/administration/payroll/actions.ts
-"use server";
-
 import prisma from "@/lib/prisma";
-import { Prisma, MissionStatus, PayRateType } from "@prisma/client";
+import { MissionStatus, PayRateType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { createAndEmitNotification } from "@/lib/notificationService";
 
 async function getNextPayrollNumber() {
     const year = new Date().getFullYear();
@@ -29,6 +27,11 @@ export async function punchTimesheet(employeeId: string, missionId: string) {
             assignedTo: {
                 include: {
                     defaultPayRate: true,
+                }
+            },
+            order: {
+                include: {
+                    client: true
                 }
             }
         }
@@ -67,21 +70,21 @@ export async function punchTimesheet(employeeId: string, missionId: string) {
             const durationInMinutes = Math.round((now.getTime() - timeLog.startTime.getTime()) / (1000 * 60));
             const durationInHours = durationInMinutes / 60;
             let earnings = 0;
-            const payRate = mission.assignedTo.defaultPayRate;
+            
+            // --- CORRECTION CRITIQUE : Accès sécurisé au tarif par défaut ---
+            // L'opérateur de chaînage optionnel (?.) évite une erreur si `defaultPayRate` est null.
+            const payRate = mission.assignedTo?.defaultPayRate;
 
             if (payRate) {
+                // FIX: Use the imported PayRateType enum directly for better type safety
                 switch (payRate.type) {
-                    case "PER_HOUR":
+                    case PayRateType.PER_HOUR:
                         earnings = payRate.amount * durationInHours;
                         break;
-                    case "PER_DAY":
-                        if (durationInHours >= 4) {
-                            earnings = payRate.amount;
-                        } else { 
-                            earnings = (payRate.amount / 8) * durationInHours; 
-                        }
+                    case PayRateType.PER_DAY:
+                        earnings = (durationInHours >= 4) ? payRate.amount : (payRate.amount / 8) * durationInHours;
                         break;
-                    case "PER_MISSION":
+                    case PayRateType.PER_MISSION:
                         earnings = payRate.amount;
                         break;
                     default:
@@ -92,7 +95,7 @@ export async function punchTimesheet(employeeId: string, missionId: string) {
             await prisma.$transaction([
                 prisma.mission.update({
                     where: { id: missionId },
-                    data: { status: MissionStatus.COMPLETED, actualEnd: now }
+                    data: { status: MissionStatus.APPROBATION, actualEnd: now }
                 }),
                 prisma.timeLog.update({
                     where: { id: timeLog.id },
@@ -103,11 +106,26 @@ export async function punchTimesheet(employeeId: string, missionId: string) {
                     }
                 })
             ]);
+
+            const adminsAndManagers = await prisma.user.findMany({
+                where: { role: { in: ['ADMIN', 'MANAGER'] } }
+            });
+
+            const missionTitle = mission.order?.client?.nom || mission.title || "une mission";
+
+            for (const user of adminsAndManagers) {
+                await createAndEmitNotification({
+                    userId: user.id,
+                    message: `La mission chez <b>${missionTitle}</b> est terminée et attend votre approbation.`,
+                    link: `/administration/missions/${missionId}`
+                });
+            }
         } else {
             return { success: false, error: `Action non autorisée pour une mission avec le statut ${mission.status}.` };
         }
 
         revalidatePath(`/administration/payroll/${employeeId}`);
+        revalidatePath(`/administration/missions`);
         return { success: true };
     } catch (error) {
         console.error("Erreur de pointage:", error);
@@ -125,7 +143,7 @@ export async function recordPayment(formData: FormData) {
     if (!employeeId || !amountStr || !dateStr || !type) {
         return { success: false, error: "Données manquantes." };
     }
-    
+
     const amount = parseFloat(amountStr.replace(',', '.'));
     if (isNaN(amount) || amount <= 0) {
         return { success: false, error: "Le montant est invalide." };
@@ -141,7 +159,7 @@ export async function recordPayment(formData: FormData) {
                 notes: notes || null,
             }
         });
-        
+
         revalidatePath(`/administration/payroll/${employeeId}`);
         return { success: true, message: "Paiement enregistré avec succès !" };
 
@@ -192,7 +210,7 @@ export async function generatePayroll(employeeId: string, periodStart: Date, per
                     payrollId: null,
                     startTime: { gte: periodStart, lte: periodEnd }
                 },
-                include: { mission: { include: { order: { select: { client: { select: { name: true } } } } } } }
+                include: { mission: { include: { order: { select: { client: { select: { nom: true } } } } } } }
             });
 
             const paymentsToProcess = await tx.payment.findMany({
@@ -232,7 +250,7 @@ export async function generatePayroll(employeeId: string, periodStart: Date, per
                 where: { id: createdPayroll.id },
                 include: {
                     employee: { include: { user: true } },
-                    timeLogs: { include: { mission: { include: { order: { select: { client: { select: { name: true } } } } } } } },
+                    timeLogs: { include: { mission: { include: { order: { select: { client: { select: { nom: true } } } } } } } },
                     payments: true,
                 }
             });
@@ -247,7 +265,6 @@ export async function generatePayroll(employeeId: string, periodStart: Date, per
     }
 }
 
-// NOUVELLE FONCTION POUR LES AVANCES
 export async function recordPayAdvance(formData: FormData) {
   const employeeId = formData.get('employeeId') as string;
   const amountStr = formData.get('amount') as string;
@@ -264,15 +281,14 @@ export async function recordPayAdvance(formData: FormData) {
 
   try {
     await prisma.$transaction(async (tx) => {
-      const document = await tx.documentLog.create({
+      const document = await tx.generatedDocument.create({ // Correct model name
         data: {
-          documentType: 'BCa',
-          documentNumber: `BCa-${Date.now()}`,
+          type: 'BCa',
+          numero: `BCa-${Date.now()}`,
           pdfUrl: '',
-          relatedId: employeeId
         }
       });
-      
+
       await tx.payAdvance.create({
         data: {
           employeeId,

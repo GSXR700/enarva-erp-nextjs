@@ -1,37 +1,20 @@
-// enarva-nextjs-dashboard-app/app/administration/reporting/components/ReportingClient.tsx
+// app/administration/reporting/components/ReportingClient.tsx
 "use client";
 
 import { useState } from "react";
-import type { Invoice, Client, CompanyInfo, Order } from "@prisma/client";
+import type { Invoice, Client, CompanyInfo, Order, Quote, JuridicState, QuoteStatus } from "@prisma/client";
 import { getFilteredInvoices } from "../actions";
 import { generateInvoiceReportPDF } from "@/lib/pdfGenerator";
 import { FileDown, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { QuoteStatus, JuridicState } from "@prisma/client";
-
-type FullInvoice = Invoice & { 
+type FullInvoice = Invoice & {
     client: Client;
     order: Order & {
-        quote: {
-            object: string | null;
-            id: string;
-            date: Date;
-            status: QuoteStatus;
-            items: any;
-            totalTTC: number;
-            totalHT: number;
-            tva: number;
-            quoteNumber: string;
-            createdAt: Date;
-            updatedAt: Date;
-            clientId: string;
-            juridicState: JuridicState;
-        } | null;
+        quote: Quote | null;
     };
 };
 
-// ... (fonctions utilitaires inchangées)
 const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
 const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(date));
 
@@ -44,7 +27,6 @@ export function ReportingClient({ initialInvoices, companyInfo }: { initialInvoi
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
-
   const [isExporting, setIsExporting] = useState(false);
 
   const handleFilter = async () => {
@@ -63,7 +45,7 @@ export function ReportingClient({ initialInvoices, companyInfo }: { initialInvoi
       setIsLoading(false);
     }
   };
-  
+
   const handleExportPDF = async () => {
     if (invoices.length === 0) {
       toast.error("Aucune donnée à exporter", {
@@ -85,7 +67,7 @@ export function ReportingClient({ initialInvoices, companyInfo }: { initialInvoi
       setIsExporting(false);
     }
   };
-  
+
   const handleExportExcel = async () => {
     toast.info("Fonctionnalité à venir", {
       description: "L'export Excel sera disponible dans une prochaine mise à jour."
@@ -111,19 +93,19 @@ export function ReportingClient({ initialInvoices, companyInfo }: { initialInvoi
             {isLoading ? <Loader2 className="animate-spin" /> : "Appliquer le filtre"}
           </button>
           <div className="flex gap-2 justify-end">
-             <button 
-               onClick={handleExportPDF} 
+             <button
+               onClick={handleExportPDF}
                disabled={isExporting}
                className="h-10 px-4 bg-red-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               {isExporting ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />} 
+               {isExporting ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />}
                PDF
              </button>
-             <button 
+             <button
                onClick={handleExportExcel}
                className="h-10 px-4 bg-green-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-green-700"
              >
-               <FileDown size={16} /> 
+               <FileDown size={16} />
                Excel
              </button>
           </div>

@@ -1,3 +1,4 @@
+// app/administration/employees/actions.ts
 "use server";
 
 import prisma from "@/lib/prisma";
@@ -10,7 +11,8 @@ export async function saveEmployee(data: any) {
   const validation = employeeFormSchema.safeParse(data);
 
   if (!validation.success) {
-    return { success: false, error: validation.error.errors[0].message };
+    // FIX: The error array is stored in the 'issues' property, not 'errors'.
+    return { success: false, error: validation.error.issues[0].message };
   }
   
   const { id, firstName, lastName, email, phone, password, role, type, departmentId, defaultPayRateId, salaireDeBase, numeroCNSS, numeroCIN } = validation.data;

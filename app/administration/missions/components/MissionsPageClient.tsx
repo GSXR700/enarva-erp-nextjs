@@ -6,25 +6,26 @@ import { MissionList } from "./MissionList";
 import { PaginationControls } from "../../components/PaginationControls";
 import { MissionFormModal } from '../../components/modals/MissionFormModal';
 import { AddMissionButton } from "./AddMissionButton";
-import type { Mission, Order, Employee } from "@prisma/client";
-import { MissionWithDetails } from "../page"; // On importe le type depuis la page
+import type { Mission, Order, Employee, Client } from "@prisma/client";
+import { MissionWithDetails } from "../page";
 
-// L'interface utilise maintenant le type importé, ce qui garantit la cohérence.
+type OrderWithClient = Order & { client: Client };
+
 interface MissionsPageClientProps {
   missions: MissionWithDetails[];
   totalMissions: number;
   hasNextPage: boolean;
   hasPrevPage: boolean;
   itemsPerPage: number;
-  allOrders: Order[];
+  allOrders: OrderWithClient[]; // Ensure this type matches the fetched data
   allEmployees: Employee[];
 }
 
-export function MissionsPageClient({ 
-  missions, 
-  totalMissions, 
-  hasNextPage, 
-  hasPrevPage, 
+export function MissionsPageClient({
+  missions,
+  totalMissions,
+  hasNextPage,
+  hasPrevPage,
   itemsPerPage,
   allOrders,
   allEmployees
@@ -45,14 +46,14 @@ export function MissionsPageClient({
 
   return (
     <>
-      <MissionFormModal 
+      <MissionFormModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         mission={selectedMission}
         allOrders={allOrders}
         allEmployees={allEmployees}
       />
-      
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-dark-text">
           Gestion des Missions

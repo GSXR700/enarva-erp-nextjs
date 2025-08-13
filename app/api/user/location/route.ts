@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/api/user/location/route.ts
+// app/api/user/location/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
@@ -27,18 +27,22 @@ export async function POST(request: Request) {
       },
     });
 
-    // CORRECTION : Émettre l'événement Socket.IO pour le temps réel
+    // Émettre l'événement Socket.IO pour le temps réel
     try {
       const io = getIO();
-      // On envoie à une "room" générale 'admin-tracking' que les admins écouteront
-      io.to('admin-tracking').emit('location-update', {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        image: updatedUser.image,
-        currentLatitude: updatedUser.currentLatitude,
-        currentLongitude: updatedUser.currentLongitude,
-        lastSeen: updatedUser.lastSeen,
-      });
+      if (io) {
+        // On envoie à une "room" générale 'admin-tracking' que les admins écouteront
+        (io as any).to('admin-tracking').emit('location-update', {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          image: updatedUser.image,
+          currentLatitude: updatedUser.currentLatitude,
+          currentLongitude: updatedUser.currentLongitude,
+          lastSeen: updatedUser.lastSeen,
+        });
+      } else {
+        console.warn("[SOCKET_EMIT] Instance Socket.IO non disponible");
+      }
     } catch (e) {
       console.error("[SOCKET_EMIT] Échec de l'émission 'location-update'", e);
     }

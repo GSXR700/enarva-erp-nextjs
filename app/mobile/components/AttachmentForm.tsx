@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import type { Mission, Order, Client } from "@prisma/client";
 import { Loader2, RefreshCw, Send, Check } from "lucide-react";
 import { useEdgeStore } from "@/lib/edgestore";
-import { saveAttachment } from "@/app/administration/missions/actions/attachmentActions";
+import { saveAttachment } from "@/app/administration/missions/actions";
 
 type SignaturePadProps = { title: string; onSave: (dataUrl: string) => void; };
 
@@ -120,7 +120,7 @@ export function AttachmentForm({ mission, onFinish }: { mission: MissionWithDeta
     return (
         <div className="w-full p-6 rounded-2xl shadow-lg bg-white text-left">
             <h2 className="text-xl font-bold text-gray-800 mb-1">Validation de Mission</h2>
-            <p className="text-sm text-gray-500 mb-4">Client : {mission.order.client.name}</p>
+            <p className="text-sm text-gray-500 mb-4">Client : {mission.order.client.nom}</p>
 
             <div className="space-y-6">
                 <SignaturePad title="Signature du Superviseur/Chef d'équipe" onSave={setSupervisorSignature} />

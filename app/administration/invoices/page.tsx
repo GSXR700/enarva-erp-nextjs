@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/invoices/page.tsx
+// app/administration/invoices/page.tsx
 
 import prisma from "@/lib/prisma";
 import { InvoiceList } from "./components/InvoiceList";
@@ -21,13 +21,12 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const [invoices, totalInvoices, companyInfo] = await prisma.$transaction([
     prisma.invoice.findMany({
       orderBy: { date: "desc" },
-      include: { 
+      include: {
         client: {
           select: {
-            // CORRECTION : On utilise `nom` au lieu de `name`
-            nom: true 
+            nom: true
           }
-        } 
+        }
       },
       skip: skip,
       take: itemsPerPage,

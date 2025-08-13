@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { PlanningPageClient } from "./components/PlanningPageClient";
 
 export default async function PlanningPage() {
-  
+
   const [missions, allOrders, allEmployees] = await Promise.all([
     prisma.mission.findMany({
         include: {
@@ -11,23 +11,25 @@ export default async function PlanningPage() {
             order: { include: { client: { select: { nom: true } } } }
         }
     }),
-    prisma.order.findMany({ 
+    // --- THIS IS THE FIX ---
+    // We must include the client data when fetching orders.
+    prisma.order.findMany({
         where: { status: 'PENDING' },
-        orderBy: { date: 'desc' } 
+        orderBy: { date: 'desc' },
+        include: {
+            client: true // This line was missing
+        }
     }),
-    prisma.employee.findMany({ 
-        where: { user: { role: 'FIELD_WORKER' } } 
+    prisma.employee.findMany({
+        where: { user: { role: 'FIELD_WORKER' } }
     })
   ]);
 
-  // CORRECTION: On gère le cas où 'mission.order' peut être null
   const initialEvents = missions.map(mission => {
-    // Find the assigned employee's name using assignedToId
     const assignedEmployee = allEmployees.find(emp => emp.id === mission.assignedToId);
     const assignedName = assignedEmployee ? `${assignedEmployee.firstName}` : "Non assigné";
-    // Si la mission a un titre, on l'utilise. Sinon, on construit le titre à partir de la commande.
     const title = mission.title || `${mission.order?.client?.nom} - ${assignedName}`;
-    
+
     return {
       id: mission.id,
       title: title,
@@ -38,9 +40,9 @@ export default async function PlanningPage() {
   });
 
   return (
-    <PlanningPageClient 
-        initialEvents={initialEvents} 
-        allOrders={allOrders} 
+    <PlanningPageClient
+        initialEvents={initialEvents}
+        allOrders={allOrders}
         allEmployees={allEmployees}
     />
   );

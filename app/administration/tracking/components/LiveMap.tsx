@@ -1,3 +1,4 @@
+// app/administration/tracking/components/LiveMap.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import ReactDOMServer from 'react-dom/server';
 import { MapPin } from 'lucide-react';
-import { useNotifications } from '@/app/context/NotificationContext'; 
+import { useNotifications } from '@/app/context/NotificationContext';
 
 interface EmployeeLocation {
     id: string;
@@ -17,7 +18,7 @@ interface EmployeeLocation {
     lastSeen: Date | null;
 }
 
-// Création d'une icône personnalisée avec Lucide
+// Création d'une icône personnalisée avec Lucide pour un meilleur rendu visuel
 const createCustomIcon = () => {
   return L.divIcon({
     html: ReactDOMServer.renderToString(
@@ -25,7 +26,7 @@ const createCustomIcon = () => {
     ),
     className: 'bg-transparent border-none',
     iconSize: [32, 32],
-    iconAnchor: [16, 32], // Pointe de l'icône
+    iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
 };
@@ -38,19 +39,19 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
     useEffect(() => {
         if (!socket) return;
 
-        // S'abonner aux mises à jour de localisation
+        // L'admin rejoint une "salle" pour écouter les mises à jour de localisation
         socket.emit('join-tracking-room');
 
         const handleLocationUpdate = (updatedEmployee: EmployeeLocation) => {
             setEmployees(prevEmployees => {
                 const existingEmployee = prevEmployees.find(emp => emp.id === updatedEmployee.id);
                 if (existingEmployee) {
-                    // Mettre à jour un employé existant
-                    return prevEmployees.map(emp => 
+                    // Mettre à jour la position d'un employé existant
+                    return prevEmployees.map(emp =>
                         emp.id === updatedEmployee.id ? updatedEmployee : emp
                     );
                 } else {
-                    // Ajouter un nouvel employé à la carte
+                    // Ajouter un nouvel employé à la carte s'il n'y était pas
                     return [...prevEmployees, updatedEmployee];
                 }
             });
@@ -58,13 +59,13 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
 
         socket.on('location-update', handleLocationUpdate);
 
-        // Nettoyage de l'écouteur
+        // Nettoyage de l'écouteur lors du démontage du composant
         return () => {
             socket.off('location-update', handleLocationUpdate);
         };
     }, [socket]);
-    
-    const defaultPosition: [number, number] = [33.5731, -7.5898];
+
+    const defaultPosition: [number, number] = [33.5731, -7.5898]; // Position par défaut (Casablanca)
 
     return (
         <MapContainer center={defaultPosition} zoom={7} scrollWheelZoom={true} style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }}>
@@ -75,10 +76,10 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
             {employees.map(emp => {
                 if (emp.currentLatitude && emp.currentLongitude) {
                     return (
-                        <Marker 
-                            key={emp.id} 
+                        <Marker
+                            key={emp.id}
                             position={[emp.currentLatitude, emp.currentLongitude]}
-                            icon={createCustomIcon()} // Utilisation de notre icône personnalisée
+                            icon={createCustomIcon()}
                         >
                             <Popup>
                                 <b>{emp.name || 'Employé inconnu'}</b><br/>

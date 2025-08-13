@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/settings/page.tsx
+// app/administration/settings/page.tsx
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { SettingsTabs } from "./components/SettingsTabs";
@@ -9,7 +9,7 @@ export default async function SettingsPage() {
     prisma.companyInfo.findFirst(),
     prisma.payRate.findMany({ orderBy: { name: "asc" } }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
-    prisma.service.findMany({ orderBy: { name: "asc" } }), // Ajout de la récupération des services
+    prisma.service.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!companyInfo) {
@@ -22,12 +22,12 @@ export default async function SettingsPage() {
         Réglages
       </h1>
       
-      <SettingsTabs 
+      <SettingsTabs
         users={users}
         companyInfo={companyInfo}
         payRates={payRates}
         departments={departments}
-        services={services} // Passer les services au composant
+        services={services}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/app/context/NotificationContext.tsx
+// app/context/NotificationContext.tsx
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -26,7 +26,7 @@ interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
   markAsRead: (id: string) => void;
-  socket: Socket | null; // On ajoute le socket ici
+  socket: Socket | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -48,14 +48,14 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.id) return;
 
-    // On se connecte au serveur WebSocket
-    const newSocket: Socket = io(process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3000');
+    // Use environment variable for WebSocket URL
+    const socketUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:3001';
+    const newSocket: Socket = io(socketUrl);
     setSocket(newSocket);
 
-    // L'utilisateur rejoint sa "chambre" personnelle pour recevoir des événements ciblés
     newSocket.emit('join-room', session.user.id);
 
-    // On charge les notifications initiales
+    // Fetch initial notifications
     fetch('/api/notifications')
       .then(res => res.json())
       .then(data => {
@@ -63,14 +63,13 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         setUnreadCount(data.filter((n: Notification) => !n.read).length);
       });
 
-    // On écoute les nouvelles notifications
     const handleNewNotification = (newNotification: Notification) => {
       setNotifications(prev => [newNotification, ...prev].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setUnreadCount(prev => prev + 1);
     };
+
     newSocket.on('new-notification', handleNewNotification);
 
-    // On nettoie la connexion quand le composant est démonté
     return () => {
       newSocket.off('new-notification', handleNewNotification);
       newSocket.disconnect();
@@ -85,8 +84,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' });
     }
   };
-  
-  // On rend le socket disponible dans la valeur du contexte
+
   const value = { notifications, unreadCount, markAsRead, socket };
 
   return (

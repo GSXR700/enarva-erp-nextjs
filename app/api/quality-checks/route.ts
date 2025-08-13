@@ -43,7 +43,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         checkedAt: new Date(),
       },
     });
-    
+
     // 4. Mettre à jour le statut de la mission à "COMPLETED"
     await prisma.mission.update({
         where: { id: missionId },

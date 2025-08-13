@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/payroll/page.tsx
+// app/administration/payroll/page.tsx
 import prisma from "@/lib/prisma";
 import { PayrollEmployeeList } from "./components/PayrollEmployeeList";
 import { PaginationControls } from "../components/PaginationControls";
@@ -32,7 +32,7 @@ export default async function PayrollPage({ searchParams }: PayrollPageProps) {
     }),
     prisma.employee.count(),
   ]);
-  
+
   const hasNextPage = (page * itemsPerPage) < totalEmployees;
   const hasPrevPage = page > 1;
 

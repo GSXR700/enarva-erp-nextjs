@@ -8,7 +8,11 @@ export default async function InvoiceDetailsPage({ params }: { params: { id: str
     where: { id: params.id },
     include: {
       client: true,
-      order: true,
+      order: {
+        include: {
+            quote: true
+        }
+      },
     },
   });
 

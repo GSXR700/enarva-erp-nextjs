@@ -6,8 +6,9 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import listPlugin from '@fullcalendar/list'; // <-- Importer le plugin pour la vue en liste
+import listPlugin from '@fullcalendar/list';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import '../planning.css';
 
 interface ScheduleEvent {
@@ -15,79 +16,60 @@ interface ScheduleEvent {
   title: string;
   start: string;
   end: string;
-  employeeId: string;
-  employeeName: string;
 }
 
 export const CalendarView = ({ initialEvents }: { initialEvents: ScheduleEvent[] }) => {
   const router = useRouter();
-  const [isMobile, setIsMobile] = useState(false);
+  const [events, setEvents] = useState(initialEvents);
 
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkIsMobile(); // Vérifier au chargement
-    window.addEventListener('resize', checkIsMobile);
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
-
-  const handleEventClick = (clickInfo: any) => {
-    router.push(`/administration/missions/${clickInfo.event.id}`);
-  };
-
-  const handleEventDrop = async (dropInfo: any) => {
-    const { event } = dropInfo;
+  const handleApiUpdate = async (eventId: string, start: string, end: string, revert: () => void) => {
     try {
-      const response = await fetch(`/api/schedule/${event.id}`, {
+      const response = await fetch(`/api/schedule/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ start: event.startStr, end: event.endStr }),
+        body: JSON.stringify({ start, end }),
       });
       if (!response.ok) throw new Error('Échec de la mise à jour');
+      toast.success("Mission mise à jour.");
+      router.refresh(); // Refresh server components
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
-      alert("Une erreur est survenue. La modification n'a pas été enregistrée.");
-      dropInfo.revert();
+      toast.error("La modification n'a pas été enregistrée.");
+      revert();
     }
+  };
+
+  const handleEventDrop = (dropInfo: any) => {
+    handleApiUpdate(dropInfo.event.id, dropInfo.event.startStr, dropInfo.event.endStr, dropInfo.revert);
+  };
+
+  // --- NEW HANDLER for resizing events ---
+  const handleEventResize = (resizeInfo: any) => {
+    handleApiUpdate(resizeInfo.event.id, resizeInfo.event.startStr, resizeInfo.event.endStr, resizeInfo.revert);
   };
 
   return (
     <FullCalendar
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]} // Ajout de listPlugin
-      headerToolbar={isMobile ? {
-        left: 'prev,next',
-        center: 'title',
-        right: 'listWeek,dayGridMonth' // Vue "liste" par défaut sur mobile
-      } : {
+      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+      headerToolbar={{
         left: 'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,timeGridWeek'
+        right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
       }}
-      initialView={isMobile ? 'listWeek' : 'timeGridWeek'}
+      initialView={'timeGridWeek'}
       locale="fr"
-      buttonText={{
-        today: "Aujourd'hui",
-        month: 'Mois',
-        week: 'Semaine',
-        list: 'Liste'
-      }}
-      events={initialEvents}
-      eventClick={handleEventClick}
+      buttonText={{ today: "Aujourd'hui", month: 'Mois', week: 'Semaine', day: 'Jour', list: 'Liste' }}
+      events={events}
+      eventClick={(info) => router.push(`/administration/missions/${info.event.id}`)}
       editable={true}
       eventDrop={handleEventDrop}
-      selectable={true}
+      eventResize={handleEventResize} // <-- ENABLE RESIZE HANDLER
       nowIndicator={true}
       height="auto"
       slotMinTime="08:00:00"
       slotMaxTime="20:00:00"
       allDaySlot={false}
-      eventTimeFormat={{
-        hour: '2-digit',
-        minute: '2-digit',
-        meridiem: false,
-        hour12: false
-      }}
+      eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false }}
     />
   );
 };

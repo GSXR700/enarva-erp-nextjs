@@ -119,10 +119,9 @@ function drawHeader(doc: jsPDF, docType: DocType, docNumber: string, date: Date,
         doc.addFont('Poppins-Bold.ttf', 'Poppins', 'bold');
     } catch(e) { 
         console.warn("Erreur lors du chargement des polices:", e);
-        // Fallback to standard font
         doc.setFont('helvetica');
     }
-  
+ 
     doc.setFillColor(30, 58, 138);
     doc.rect(0, 0, 210, 50, 'F');
     doc.setTextColor(255, 255, 255);
@@ -177,6 +176,18 @@ function drawPrestationDetails(doc: jsPDF, quote: FullQuote, startY: number): nu
     const sectionSpacing = 8;
     const maxWidth = 180;
 
+    // FIX: "Objet du devis" sur une seule ligne avec styles mixtes.
+    doc.setFont("Poppins", "bold");
+    doc.setFontSize(10);
+    const objectTitle = "Objet du Devis :";
+    doc.text(objectTitle, leftMargin, currentY);
+
+    doc.setFont("Poppins", "normal");
+    const titleWidth = doc.getTextWidth(objectTitle);
+    doc.text(toStr(quote.object), leftMargin + titleWidth + 2, currentY);
+    currentY += lineSpacing + sectionSpacing;
+
+
     const drawSection = (title: string, content: string | null | undefined, isBulleted: boolean) => {
         if (!content || content.trim() === '') return;
 
@@ -203,8 +214,6 @@ function drawPrestationDetails(doc: jsPDF, quote: FullQuote, startY: number): nu
         });
         currentY += sectionSpacing - 1;
     };
-
-    drawSection("Objet du Devis :", quote.object, false);
     
     if (quote.prestation) {
         currentY += 5;
@@ -232,8 +241,8 @@ function drawTotalsForQuoteOrInvoice(doc: jsPDF, totals: { totalHT: number, tva:
 
     const isLegal = totals.juridicState === 'LEGAL';
     const totalToConvert = isLegal ? totals.totalTTC : totals.totalHT;
-    const amountInWordsText = `Arrêté le présent devis à la somme de ${numberToWords(totalToConvert, isLegal)}.`;
-    
+    const amountInWordsText = `Veuillez arrêter le présent devis à la somme de ${numberToWords(totalToConvert, isLegal)}.`;
+
     const splitText = doc.splitTextToSize(amountInWordsText, textBlockWidth);
     doc.setFont("Poppins", "bold");
     doc.setFontSize(10);
@@ -268,32 +277,63 @@ function drawTotalsForQuoteOrInvoice(doc: jsPDF, totals: { totalHT: number, tva:
 }
 
 
-/**
- * CHANGEMENT: La fonction a été entièrement réécrite pour un alignement parfait.
- */
 function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, startY: number, docType: DocType) {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const leftMargin = 15;
     const rightMargin = pageWidth - 15;
 
-    // 1. Dessiner les observations si nécessaire (dynamiquement)
-    let contentStartY = Math.max(startY + 15, pageHeight - 60);
+    let contentStartY = startY + 15;
 
-    if (docType !== 'DEVIS') {
-        doc.setFont("Poppins", "bold");
-        doc.setFontSize(10);
-        doc.text("Observations générales :", leftMargin, contentStartY);
-        contentStartY += 5;
-        
-        doc.setFont("Poppins", "normal");
-        doc.setFontSize(9);
-        doc.text("Toute réclamation doit être signalée sous 48h après la livraison.", leftMargin, contentStartY);
-        contentStartY += 5;
-        doc.text("Les marchandises voyagent aux risques et périls du destinataire.", leftMargin, contentStartY);
+    // --- NOUVELLE LOGIQUE DYNAMIQUE POUR LES OBSERVATIONS ---
+    let observationsTitle = "";
+    let observationsLines: string[] = [];
+
+    if (docType === 'FACTURE') {
+        observationsTitle = "Observations générales :";
+        observationsLines = [
+            "Toute réclamation doit être signalée sous 48h après la livraison.",
+            "Les marchandises voyagent aux risques et périls du destinataire.",
+            "La présente facture vaut titre exécutoire en cas de non-paiement."
+        ];
+    } else if (docType === 'BON DE LIVRAISON') {
+        observationsTitle = "Observations générales :";
+        observationsLines = [
+            "Toute réclamation doit être signalée sous 48h après la livraison.",
+            "La livraison a été effectuée selon le bon de commande.",
+            "Le client s'engage à vérifier la conformité avant de signer."
+        ];
+    } else if (docType === 'DEVIS') {
+        observationsTitle = "Conditions de paiement :";
+        observationsLines = [
+            "Les règlements peuvent être effectués par virement bancaire, par chèque ou en espèces.",
+            "Échelonnement du Paiement: 30% à l'initiation du travail et 50% à la livraison."
+        ];
     }
 
-    // 2. Le séparateur est toujours fixe en bas
+    // Affichage de la section si des observations sont définies
+    if (observationsTitle && observationsLines.length > 0) {
+        doc.setFont("Poppins", "bold");
+        doc.setFontSize(10);
+        doc.text(observationsTitle, leftMargin, contentStartY);
+        contentStartY += 6; // Espace après le titre
+
+        doc.setFont("Poppins", "normal");
+        doc.setFontSize(9);
+        
+        // Boucle pour afficher chaque ligne en tant que puce
+        observationsLines.forEach(line => {
+            const splitLines = doc.splitTextToSize(line, pageWidth - (leftMargin * 2) - 5);
+            doc.text(`•`, leftMargin, contentStartY, { align: 'left' });
+            doc.text(splitLines, leftMargin + 5, contentStartY);
+            // Calcule la hauteur du texte pour ajuster la position Y pour la prochaine ligne
+            const textDimensions = doc.getTextDimensions(splitLines);
+            contentStartY += textDimensions.h + 2;
+        });
+    }
+    // --- FIN DE LA NOUVELLE LOGIQUE ---
+
+
     const separatorY = pageHeight - 20;
     doc.setLineWidth(0.5);
     doc.setDrawColor(200, 200, 200);
@@ -301,21 +341,19 @@ function drawFooter(doc: jsPDF, companyInfo: CompanyInfo, startY: number, docTyp
 
     const infoY = separatorY + 8;
 
-    // 3. Dessiner le logo en petit et en bleu
     doc.setFont("Poppins", "bold");
     doc.setFontSize(18);
-    doc.setTextColor(30, 58, 138); // Couleur bleue
+    doc.setTextColor(30, 58, 138);
     doc.setCharSpace(-0.2);
     doc.text("enarva", leftMargin, infoY);
     doc.setCharSpace(0);
 
-    // 4. Dessiner les informations de l'entreprise alignées à droite
     const { rc = 'N/A', if: ifo = 'N/A', ice = 'N/A' } = companyInfo;
     const companyDetails = `RC: ${rc} | IF: ${ifo} | ICE: ${ice}`;
     
     doc.setFont("Poppins", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139); // Gris
+    doc.setTextColor(100, 116, 139);
 
     doc.text(companyDetails, rightMargin, infoY, { align: 'right' });
     
@@ -341,6 +379,35 @@ export function generateQuotePDF(quote: FullQuote, companyInfo: CompanyInfo) {
     const hasItems = items && items.length > 0 && !(items.length === 1 && items[0].designation === "" && items[0].total === 0);
 
     if (hasItems) {
+        let tableHeight = 0;
+        autoTable(doc, {
+            startY: currentY,
+            head: [items.map(i => i.designation)],
+            body: items.map(i => [
+                toStr(i.designation), 
+            ]),
+            styles: { font: "Poppins", fontSize: 9, cellPadding: 3 },
+            didDrawPage: () => {},
+            willDrawCell: () => false,
+            didParseCell: (data) => {
+                if (data.cursor) {
+                    tableHeight = data.cursor.y - currentY;
+                }
+            }
+        });
+        
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const footerAreaHeight = 40; 
+        const totalsHeight = 60;
+        const observationsHeight = 35; 
+        const requiredSpace = tableHeight + totalsHeight + observationsHeight;
+        const availableSpace = pageHeight - footerAreaHeight - currentY;
+
+        if (requiredSpace > availableSpace) {
+            doc.addPage();
+            currentY = 20; 
+        }
+
         autoTable(doc, {
             startY: currentY,
             head: [['Désignation', 'Quantité', 'Prix Unitaire', 'Total HT']],

@@ -1,10 +1,9 @@
-// enarva-nextjs-dashboard-app/app/administration/components/notifications/NotificationBell.tsx
+// app/administration/components/notifications/NotificationBell.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
 import Link from 'next/link';
 import { useNotifications } from '@/app/context/NotificationContext';
-import type { Notification } from '@/app/context/NotificationContext';
 import { Bell } from 'lucide-react';
 import { UserAvatar } from '../UserAvatar';
 
@@ -33,14 +32,13 @@ export function NotificationBell() {
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
-      if (!dropdownRef.current || !isOpen) return;
-      if (dropdownRef.current.contains(target as Node)) return;
+      if (!dropdownRef.current || !isOpen || dropdownRef.current.contains(target as Node)) return;
       setIsOpen(false);
     };
     document.addEventListener("click", clickHandler);
     return () => document.removeEventListener("click", clickHandler);
   });
-  
+
   const handleNotificationClick = (id: string) => {
     markAsRead(id);
     setIsOpen(false);
@@ -58,7 +56,6 @@ export function NotificationBell() {
       </button>
 
       {isOpen && (
-        // La largeur a été augmentée à w-96 (384px)
         <div className="absolute right-0 mt-2 w-96 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-dark-container dark:ring-dark-border">
           <div className="p-3 font-semibold border-b dark:border-dark-border dark:text-white">Notifications</div>
           <ul className="divide-y divide-gray-100 dark:divide-dark-border max-h-96 overflow-y-auto">
@@ -69,11 +66,7 @@ export function NotificationBell() {
                 <li key={notif.id} className={`${!notif.read ? 'bg-blue-50 dark:bg-primary/10' : 'bg-transparent'}`}>
                   <Link href={notif.link || '#'} onClick={() => handleNotificationClick(notif.id)} className="block p-3 hover:bg-gray-100 dark:hover:bg-dark-surface">
                      <div className="flex items-center gap-3">
-                        {/* Utilisation du composant UserAvatar avec les données de l'expéditeur */}
-                        <UserAvatar                          src={notif.sender?.image ?? undefined}
-                          name={notif.sender?.name ?? undefined}
-                          size={40} 
-                        />
+                        <UserAvatar src={notif.sender?.image} name={notif.sender?.name} size={40} />
                         <div className="flex-1">
                             <p className="text-sm text-gray-700 dark:text-dark-text" dangerouslySetInnerHTML={{ __html: notif.message }}></p>
                             <p className="text-xs text-gray-400 dark:text-dark-subtle mt-1">{new Date(notif.createdAt).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})}</p>

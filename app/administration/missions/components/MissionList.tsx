@@ -19,10 +19,10 @@ export function MissionList({ missions, onEdit }: MissionListProps) {
   const handleDelete = async (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cette mission ?")) {
         const result = await deleteMission(id);
-        if (result.message.includes("Erreur")) {
-            toast.error(result.message);
-        } else {
+        if (result.success) {
             toast.success(result.message);
+        } else {
+            toast.error(result.message);
         }
     }
   };
@@ -32,13 +32,14 @@ export function MissionList({ missions, onEdit }: MissionListProps) {
     switch (status) {
       case 'PENDING': return <span className={`${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300`}>En attente</span>;
       case 'IN_PROGRESS': return <span className={`${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300`}>En cours</span>;
-      case 'COMPLETED': return <span className={`${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`}>Terminée</span>;
-      case 'VALIDATED': return <span className={`${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300`}>Validée</span>;
+      case 'APPROBATION': return <span className={`${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300`}>En Approbation</span>;
+      case 'COMPLETED': return <span className={`${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`}>Approuvée</span>;
+      case 'VALIDATED': return <span className={`${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300`}>Validée & Facturée</span>;
       case 'CANCELLED': return <span className={`${baseClasses} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300`}>Annulée</span>;
       default: return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</span>;
     }
   };
-  
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left">
@@ -56,25 +57,22 @@ export function MissionList({ missions, onEdit }: MissionListProps) {
             <tr key={mission.id} className="hover:bg-gray-50 dark:hover:bg-white/5">
               <td className="p-4">
                 <div className="font-semibold text-gray-800 dark:text-dark-text">
-                  {mission.order ? mission.order.orderNumber : mission.title}
+                  {mission.order ? mission.order.orderNumber : (mission.title || "Mission Spéciale")}
                 </div>
                 {mission.order && (
                   <div className="text-xs text-gray-500 dark:text-dark-subtle">
-                    {mission.order.client.name}
+                    {mission.order.client.nom}
                   </div>
                 )}
               </td>
-              <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{mission.assignedTo.firstName} {mission.assignedTo.lastName}</td>
+              <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">
+                {mission.assignedTo ? `${mission.assignedTo.firstName} ${mission.assignedTo.lastName}` : "Non assigné"}
+              </td>
               <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{new Date(mission.scheduledStart).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</td>
               <td className="p-4">{getStatusBadge(mission.status)}</td>
               <td className="p-4">
                 <div className="flex items-center justify-center gap-2">
-                    {/* NOUVEAU BOUTON "AFFICHER" */}
-                    <button 
-                        onClick={() => router.push(`/administration/missions/${mission.id}`)} 
-                        className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700" 
-                        aria-label="Afficher la mission"
-                    >
+                    <button onClick={() => router.push(`/administration/missions/${mission.id}`)} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Afficher la mission">
                         <Eye className="h-4 w-4" />
                     </button>
                     <button onClick={() => onEdit(mission)} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Modifier la mission">

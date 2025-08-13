@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/api/tracking/employees/route.ts
+// app/api/tracking/employees/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -6,7 +6,8 @@ export async function GET() {
   try {
     const trackedEmployees = await prisma.user.findMany({
       where: {
-        isOnline: true,
+        // CORRECTION : Suppression de la condition `isOnline: true`.
+        // Nous affichons maintenant tout utilisateur qui a des coordonnées valides.
         currentLatitude: { not: null },
         currentLongitude: { not: null },
       },

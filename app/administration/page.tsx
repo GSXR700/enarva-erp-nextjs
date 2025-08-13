@@ -5,6 +5,7 @@ import { Euro, FileText, Briefcase, CheckSquare, Users } from 'lucide-react';
 import MetricCard from '@/components/ui/MetricCard';
 import { RevenueChart } from './components/charts/RevenueChart';
 import { MissionStatusChart } from './components/charts/MissionStatusChart';
+import { ActivityFeed } from './components/dashboard/ActivityFeed'; // <-- NOUVEL IMPORT
 
 interface DashboardMetrics {
     commercial: {
@@ -54,8 +55,6 @@ function formatCurrency(amount: number): string {
 
 // --- DATA FETCHING ---
 async function getDashboardData() {
-    // CORRECTION: Reverted to using a full URL, but with the correct fallback port (3000).
-    // It's recommended to set NEXT_PUBLIC_APP_URL in your .env.local file.
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const [metricsRes, chartDataRes] = await Promise.all([
@@ -69,7 +68,7 @@ async function getDashboardData() {
     }
 
     const metrics: DashboardMetrics = await metricsRes.json();
-    
+
     let chartData: ChartData | null = null;
     if (chartDataRes.ok) {
         chartData = await chartDataRes.json();
@@ -119,22 +118,21 @@ async function DashboardContent() {
                 />
             </div>
 
-            {chartData ? (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                    <div className="lg:col-span-3">
+            {/* MISE À JOUR : Ajout de la grille pour les graphiques ET l'activité récente */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-6">
+                    {chartData ? (
                         <RevenueChart data={chartData.revenueChartData} />
-                    </div>
-                    <div className="lg:col-span-2">
-                        <MissionStatusChart data={chartData.missionStatusChartData} />
-                    </div>
+                    ) : (
+                        <ChartSkeleton />
+                    )}
                 </div>
-            ) : (
-                <div className="p-6 bg-white dark:bg-dark-container rounded-lg shadow-md">
-                    <p className="text-red-500 dark:text-red-400">
-                        Impossible de charger les graphiques.
-                    </p>
+                <div className="lg:col-span-1">
+                     <Suspense fallback={<ChartSkeleton />}>
+                        <ActivityFeed />
+                     </Suspense>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
@@ -149,9 +147,9 @@ export default async function DashboardPage() {
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                         {[...Array(5)].map((_, i) => <MetricCardSkeleton key={i} />)}
                     </div>
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                        <div className="lg:col-span-3"><ChartSkeleton /></div>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                         <div className="lg:col-span-2"><ChartSkeleton /></div>
+                        <div className="lg:col-span-1"><ChartSkeleton /></div>
                     </div>
                 </div>
             }>

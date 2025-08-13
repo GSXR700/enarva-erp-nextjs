@@ -27,17 +27,22 @@ export async function getQuoteForPdf(id: string) {
 
 export async function getNextQuoteNumber() {
     const lastQuote = await prisma.quote.findFirst({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        where: { quoteNumber: { startsWith: 'DV-' } }
     });
-    let nextNumber = 100;
-    if (lastQuote && lastQuote.quoteNumber.startsWith('DV-')) {
-        const numPart = lastQuote.quoteNumber.split('/')[0].split('-')[1];
-        if (numPart) {
-            nextNumber = parseInt(numPart) + 1;
+
+    let nextNumber = 102;
+
+    if (lastQuote && lastQuote.quoteNumber) {
+        const match = lastQuote.quoteNumber.match(/DV-(\d+)/);
+        if (match && match[1]) {
+            const lastNumber = parseInt(match[1], 10);
+            nextNumber = Math.max(lastNumber + 1, 100);
         }
     }
     return `DV-${nextNumber}/${new Date().getFullYear()}`;
 }
+
 
 export async function saveQuote(formData: FormData) {
     const id = formData.get("id") as string;
@@ -52,7 +57,6 @@ export async function saveQuote(formData: FormData) {
     const { data: quoteData } = validated;
     const items = JSON.parse(quoteData.items);
 
-    // --- CORRECTION : Les calculs sont faits sur le serveur ---
     const totalHT = items.reduce((sum: number, item: any) => sum + (parseFloat(item.total) || 0), 0);
     
     let tva = 0;
@@ -69,7 +73,6 @@ export async function saveQuote(formData: FormData) {
         object: quoteData.object,
         juridicState: quoteData.juridicState,
         items: items as Prisma.InputJsonValue,
-        // On inclut les totaux recalculés ici
         totalHT, 
         tva, 
         totalTTC,
@@ -84,6 +87,7 @@ export async function saveQuote(formData: FormData) {
 
     try {
         if (id) {
+            // Update existing quote - No change to quoteNumber
             await prisma.quote.update({
                 where: { id },
                 data: {
@@ -97,11 +101,12 @@ export async function saveQuote(formData: FormData) {
                 }
             });
         } else {
+            // Create new quote - Generate a new quoteNumber
             const quoteNumber = await getNextQuoteNumber();
             await prisma.quote.create({
                 data: {
                     ...dataToSave,
-                    quoteNumber: quoteNumber,
+                    quoteNumber: quoteNumber, // Assign the new number here
                     prestation: {
                         create: prestationData
                     }
@@ -122,6 +127,7 @@ export async function deleteQuote(id: string) {
     try {
         const existingOrder = await prisma.order.findFirst({ where: { quoteId: id } });
         if (existingOrder) return { success: false, error: "Impossible de supprimer ce devis car il a déjà été accepté." };
+        
         await prisma.prestation.deleteMany({ where: { quoteId: id } });
         await prisma.quote.delete({ where: { id } });
         

@@ -5,9 +5,6 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 
-// ========================================================
-// METTRE À JOUR UN LEAD (PATCH) - v4.0
-// ========================================================
 export async function PATCH(
   req: Request,
   { params }: { params: { leadId: string } }
@@ -19,20 +16,19 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    // On utilise les nouveaux champs de notre schéma v4.0
-    const { nom, email, telephone, canal, type, statut, source, commentaire, assignedToId } = body;
+    const { 
+        nom, email, telephone, canal, type, statut, source, commentaire, quoteObject, 
+        assignedToId, subcontractorAsSourceId, date_intervention, date_cloture 
+    } = body;
 
     if (!params.leadId) {
       return new NextResponse("ID du prospect manquant", { status: 400 });
     }
-
     if (!nom) {
         return new NextResponse("Le nom du contact est obligatoire", { status: 400 });
     }
 
-    const updatedLead = await prisma.lead.update({
-      where: { id: params.leadId },
-      data: {
+    const dataToUpdate = {
         nom,
         email,
         telephone,
@@ -41,20 +37,30 @@ export async function PATCH(
         statut,
         source,
         commentaire,
-        assignedToId,
-      },
+        quoteObject,
+        assignedToId: assignedToId || null,
+        subcontractorAsSourceId: subcontractorAsSourceId || null,
+        // --- ADDED: Handle date fields, converting empty strings to null ---
+        date_intervention: date_intervention ? new Date(date_intervention) : null,
+        date_cloture: date_cloture ? new Date(date_cloture) : null,
+    };
+
+    const updatedLead = await prisma.lead.update({
+      where: { id: params.leadId },
+      data: dataToUpdate,
     });
 
     return NextResponse.json(updatedLead);
 
   } catch (error) {
     console.error("[LEAD_PATCH_ERROR]", error);
-    return new NextResponse("Erreur Interne du Serveur", { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Erreur Interne du Serveur";
+    return new NextResponse(errorMessage, { status: 500 });
   }
 }
 
 // ========================================================
-// SUPPRIMER UN LEAD (DELETE) - v4.0
+// SUPPRIMER UN LEAD (DELETE) - v6.0
 // ========================================================
 export async function DELETE(
   req: Request,
@@ -69,10 +75,6 @@ export async function DELETE(
     if (!params.leadId) {
       return new NextResponse("ID du prospect manquant", { status: 400 });
     }
-
-    // Avant de supprimer, on pourrait ajouter une logique pour vérifier 
-    // si le lead est déjà converti ou lié à d'autres éléments.
-    // Pour l'instant, nous faisons une suppression directe.
 
     await prisma.lead.delete({
       where: { id: params.leadId },

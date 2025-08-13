@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Mission, Subcontractor } from "@prisma/client";
-import { updateSubcontractingStatus } from "../../actions/subcontractingActions";
+import { updateSubcontractingStatus } from "../../actions";
 import { Truck, Check, Loader2 } from "lucide-react";
 
 type SubcontractingCardProps = {

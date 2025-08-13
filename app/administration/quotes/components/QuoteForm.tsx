@@ -374,7 +374,7 @@ export function QuoteForm({ clients, products, services, quote }: QuoteFormProps
         </div>
         <div>
             <label htmlFor="personnelMobilise" className="block mb-2 text-sm font-medium text-gray-700 dark:text-dark-subtle">Personnel mobilisé</label>
-            <input id="personnelMobilise" value={personnel} onChange={e => setPersonnel(e.target.value)} placeholder="Ex: 1 cheffe d'équipe, 4 agents qualifiés" className="w-full p-2 border rounded bg-gray-50 dark:bg-dark-background dark:border-dark-border dark:text-dark-text" />
+            <textarea id="personnelMobilise" value={personnel} onChange={e => setPersonnel(e.target.value)} rows={3} placeholder="Ex: 1 cheffe d'équipe, 4 agents qualifiés" className="w-full p-2 border rounded bg-gray-50 dark:bg-dark-background dark:border-dark-border dark:text-dark-text" />
         </div>
          <div>
             <label htmlFor="equipementsUtilises" className="block mb-2 text-sm font-medium text-gray-700 dark:text-dark-subtle">Équipements et produits utilisés</label>

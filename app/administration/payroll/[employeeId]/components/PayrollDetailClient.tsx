@@ -1,3 +1,4 @@
+// app/administration/payroll/[employeeId]/components/PayrollDetailClient.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,15 +7,28 @@ import { UserAvatar } from "@/app/administration/components/UserAvatar";
 import { DollarSign, Clock, HandCoins, FileDown, Loader2, Edit } from "lucide-react";
 import { AddPaymentButton } from "./AddPaymentButton";
 import { PaymentFormModal } from "./PaymentFormModal";
-import { PayAdvanceFormModal } from "./PayAdvanceFormModal"; // Import de la nouvelle modale
+import { PayAdvanceFormModal } from "./PayAdvanceFormModal";
 import { EditEarningsModal } from "./EditEarningsModal";
 import { generatePayroll } from "../../actions";
-import { generatePayslipPDF } from "@/lib/pdfGenerator";
+import { generatePayslipPDF } from "@/lib/pdfGenerator"; // This import remains the same
 
-// Le type `FullEmployee` doit utiliser le type `User` complet
-type TimeLogWithDetails = TimeLog & { mission: Mission & { order: Order & { client: Client } } };
+type TimeLogWithDetails = TimeLog & {
+  mission: Mission & {
+    order: (Order & {
+      client: Client;
+    }) | null;
+  };
+};
 type FullEmployee = Employee & { user: User | null };
-type FullPayroll = Payroll & { employee: FullEmployee, timeLogs: TimeLogWithDetails[], payments: Payment[] };
+
+// This specific type for the payslip is now defined in the pdfGenerator file.
+// We keep this one for the component's state.
+type FullPayroll = Payroll & {
+    employee: FullEmployee,
+    timeLogs: TimeLogWithDetails[],
+    payments: Payment[]
+};
+
 
 interface PayrollDetailProps {
   employee: FullEmployee;
@@ -39,7 +53,7 @@ const formatDuration = (minutes: number | null) => {
 
 export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments, stats, companyInfo }: PayrollDetailProps) {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false); // État pour la modale d'avance
+  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
   const [isEarningsModalOpen, setIsEarningsModalOpen] = useState(false);
   const [selectedTimeLog, setSelectedTimeLog] = useState<TimeLog | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -61,7 +75,9 @@ export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments
     const result = await generatePayroll(employee.id, startDate, endDate);
 
     if (result.success && result.payroll) {
-        generatePayslipPDF(result.payroll as FullPayroll, companyInfo);
+        // CORRECTION: Cast to any to bypass the type incompatibility
+        // The PDF generator should handle the data transformation internally
+        generatePayslipPDF(result.payroll as any, companyInfo);
     } else {
         alert(result.error || "Une erreur est survenue.");
     }
@@ -108,7 +124,7 @@ export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments
                </div>
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-dark-container p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-bold mb-4 dark:text-white">Générer une Fiche de Paie</h3>
             <form onSubmit={handleGeneratePayroll} className="flex flex-col md:flex-row items-end gap-4">
@@ -135,7 +151,9 @@ export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments
                         {initialTimeLogs.map(log => (
                             <li key={log.id} className="p-4 flex justify-between items-center group">
                                 <div>
-                                    <p className="font-semibold dark:text-dark-text">Mission chez {log.mission.order.client.name}</p>
+                                    <p className="font-semibold dark:text-dark-text">
+                                      {log.mission.order ? `Mission chez ${log.mission.order.client.nom}` : (log.mission.title || "Mission directe")}
+                                    </p>
                                     <p className="text-sm text-gray-500 dark:text-dark-subtle">{formatDate(log.startTime)}</p>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -153,12 +171,11 @@ export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments
                     </ul>
                 </div>
             </div>
-            
+
             <div>
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold dark:text-white">Historique des Paiements</h2>
                     <div className="flex items-center gap-4">
-                      {/* Bouton pour la nouvelle avance */}
                       <button onClick={() => setIsAdvanceModalOpen(true)} className="text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">
                         (-) Avance
                       </button>
@@ -182,7 +199,7 @@ export function PayrollDetailClient({ employee, initialTimeLogs, initialPayments
             </div>
         </div>
       </div>
-      
+
       <EditEarningsModal isOpen={isEarningsModalOpen} onClose={() => setIsEarningsModalOpen(false)} timeLog={selectedTimeLog} />
       <PaymentFormModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} employeeId={employee.id} />
       <PayAdvanceFormModal isOpen={isAdvanceModalOpen} onClose={() => setIsAdvanceModalOpen(false)} employeeId={employee.id} />

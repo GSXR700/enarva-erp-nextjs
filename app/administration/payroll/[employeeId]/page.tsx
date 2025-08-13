@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/app/administration/payroll/[employeeId]/page.tsx
+// app/administration/payroll/[employeeId]/page.tsx
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { PayrollDetailClient } from "./components/PayrollDetailClient";
@@ -10,7 +10,6 @@ async function getEmployeePayrollData(employeeId: string) {
     prisma.employee.findUnique({
       where: { id: employeeId },
       include: {
-        // CORRECTION : On inclut l'objet utilisateur complet au lieu de sélectionner des champs
         user: true,
         timeLogs: {
           orderBy: { startTime: 'desc' },
@@ -23,7 +22,7 @@ async function getEmployeePayrollData(employeeId: string) {
     }),
     prisma.companyInfo.findFirst()
   ]);
-  
+
 
   if (!employee || !companyInfo) {
     return null;

@@ -1,4 +1,4 @@
-// contenu du fichier 
+// app/administration/quotes/[id]/actions.ts
 
 "use server";
 
@@ -43,7 +43,7 @@ export async function createOrderFromQuote(formData: FormData) {
             const orderNumber = await getNextOrderNumber(tx);
             const now = new Date();
             const itemsAsJsonArray = quote.items as Prisma.JsonArray;
-            
+
             // 1. Créer la commande
             const newOrder = await tx.order.create({
                 data: {
@@ -53,7 +53,6 @@ export async function createOrderFromQuote(formData: FormData) {
                     quoteId: quote.id,
                     clientId: quote.clientId,
                     items: itemsAsJsonArray,
-                    // CHANGEMENT: Aucune modification de code nécessaire ici.
                     // La valeur `quote.totalTTC` est déjà correcte car elle
                     // a été calculée en fonction du `juridicState` lors de
                     // la sauvegarde du devis. On la propage simplement.

@@ -8,7 +8,7 @@ import { ProgressBar } from "./components/ProgressBar";
 import { useSession } from "next-auth/react";
 import { InitialLoader } from "./components/skeletons/InitialLoader";
 import { NotificationsProvider } from "@/app/context/NotificationContext";
-import { ModalProvider } from "@/providers/modal-provider"; // <-- IMPORT DU NOUVEAU PROVIDER
+import { ModalProvider } from "@/providers/modal-provider";
 
 export default function AdminLayout({
   children,
@@ -26,8 +26,7 @@ export default function AdminLayout({
     <div className="dark:bg-boxdark-2 dark:text-bodydark">
       <ProgressBar />
       <NotificationsProvider>
-        {/* On ajoute le ModalProvider ici pour qu'il englobe toute l'application */}
-        <ModalProvider /> 
+        <ModalProvider />
         <div className="flex h-screen overflow-hidden">
           <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} userRole={session?.user?.role} />
           <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">

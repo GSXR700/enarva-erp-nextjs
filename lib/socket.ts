@@ -21,6 +21,14 @@ interface NotificationPayload {
 interface ServerToClientEvents {
   'user-status-changed': (data: { userId: string; isOnline: boolean }) => void;
   'new-notification': (notification: NotificationPayload) => void;
+   "location-update": (data: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    currentLatitude: number | null;
+    currentLongitude: number | null;
+    lastSeen: Date;
+  }) => void;
 }
 
 interface ClientToServerEvents {

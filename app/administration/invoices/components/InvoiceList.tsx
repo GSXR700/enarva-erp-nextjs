@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/administration/invoices/components/InvoiceList.tsx
+// app/administration/invoices/components/InvoiceList.tsx
 
 "use client";
 
@@ -14,7 +14,7 @@ type InvoiceWithClient = Invoice & {
 };
 
 export function InvoiceList({ invoices }: { invoices: InvoiceWithClient[] }) {
-  
+
   const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(date));
   const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount || 0);
 
@@ -47,7 +47,6 @@ export function InvoiceList({ invoices }: { invoices: InvoiceWithClient[] }) {
             <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-white/5">
               <td className="p-4 text-sm font-semibold text-gray-800 dark:text-dark-text">{invoice.invoiceNumber}</td>
               <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">
-                {/* CORRECTION : On utilise `invoice.client.nom` */}
                 {invoice.client ? invoice.client.nom : <span className="text-red-500">Client non trouvé</span>}
               </td>
               <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{formatDate(invoice.date)}</td>

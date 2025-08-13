@@ -1,3 +1,4 @@
+// app/administration/subcontractors/actions.ts
 "use server";
 
 import prisma from "@/lib/prisma";
@@ -11,8 +12,10 @@ export async function saveSubcontractor(formData: FormData) {
     contact: formData.get("contact") as string || null,
     phone: formData.get("phone") as string || null,
     email: formData.get("email") as string || null,
+    // ADDED: Handle commissionRate, converting it to a float
+    commissionRate: parseFloat(formData.get("commissionRate") as string) || 0,
   };
-  
+
   try {
     if (id) {
       await prisma.subcontractor.update({ where: { id }, data });

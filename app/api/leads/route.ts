@@ -6,7 +6,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 
 // ========================================================
-// CRÉER UN NOUVEAU LEAD (POST) - v4.0
+// CRÉER UN NOUVEAU LEAD (POST) - v6.0
 // ========================================================
 export async function POST(req: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     // On utilise les nouveaux noms de champs
-    const { nom, email, telephone, canal, type, source, commentaire } = body;
+    const { nom, email, telephone, canal, type, source, commentaire, quoteObject } = body;
 
     if (!nom) {
       return new NextResponse("Le nom du contact est obligatoire", { status: 400 });
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
         type,
         source,
         commentaire,
+        quoteObject, // New field
         // Les autres champs comme le statut ont des valeurs par défaut
       },
     });
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
 }
 
 // ========================================================
-// RÉCUPÉRER LA LISTE DES LEADS (GET) - v4.0
+// RÉCUPÉRER LA LISTE DES LEADS (GET) - v6.0
 // ========================================================
 export async function GET(req: Request) {
     try {

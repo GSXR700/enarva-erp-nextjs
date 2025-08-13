@@ -1,3 +1,4 @@
+// app/mobile/components/MobileView.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -5,16 +6,17 @@ import type { Employee, Mission, Order, Client } from "@prisma/client";
 import { Camera, ShieldCheck, ListChecks, Loader2, PlayCircle, StopCircle, CheckCircle, MapPin } from "lucide-react";
 import { QualityCheckForm } from './QualityCheckForm';
 import { ObservationUploader } from './ObservationUploader';
-import { AttachmentForm } from './AttachmentForm'; // Import du nouveau formulaire
+import { AttachmentForm } from './AttachmentForm';
 import { punchTimesheet } from '../actions';
 import { useLocationTracker } from '../hooks/useLocationTracker';
 
 type MissionWithDetails = Mission & {
-  order: Order & {
+  order: (Order & { // The order can be null
     client: Client;
-  };
+  }) | null;
 };
 
+// --- CORRECTED COMPONENT ---
 function MissionCard({ mission, onSelect }: { mission: MissionWithDetails; onSelect: () => void; }) {
     const getStatusBadge = () => {
         switch (mission.status) {
@@ -23,13 +25,18 @@ function MissionCard({ mission, onSelect }: { mission: MissionWithDetails; onSel
             default: return 'bg-gray-100 text-gray-800';
         }
     };
+
+    // Safely access the title and address, providing fallbacks
+    const title = mission.order?.client?.nom || mission.title || "Mission sans titre";
+    const address = mission.order?.client?.adresse || "Adresse non disponible";
+
     return (
         <div onClick={onSelect} className="w-full p-4 mb-4 rounded-xl shadow-md bg-white border border-gray-200 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all">
             <div className="flex justify-between items-center">
-                <h3 className="font-bold text-lg text-gray-800">{mission.order.client.name}</h3>
+                <h3 className="font-bold text-lg text-gray-800">{title}</h3>
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge()}`}>{mission.status}</span>
             </div>
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5"><MapPin size={12} /> {mission.order.client.address}</p>
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5"><MapPin size={12} /> {address}</p>
             <p className="text-sm text-gray-500 mt-2">Prévu à: {new Date(mission.scheduledStart).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
     );
@@ -82,9 +89,10 @@ export function MobileView({ employee }: { employee: Employee }) {
     };
 
     if (activeForm && selectedMission) {
+        // Forms can only be opened for missions with an order/client
         if (activeForm === 'observation') return <div className="min-h-screen bg-gray-50 flex items-center p-4"><ObservationUploader employee={employee} missionId={selectedMission.id} onFinish={handleFinishForm} /></div>;
-        if (activeForm === 'quality') return <div className="min-h-screen bg-gray-50 flex items-center p-4"><QualityCheckForm missionId={selectedMission.id} clientId={selectedMission.order.clientId} onFinish={handleFinishForm} /></div>;
-        if (activeForm === 'attachment') return <div className="min-h-screen bg-gray-50 flex items-center p-4"><AttachmentForm mission={selectedMission} onFinish={handleFinishForm} /></div>;
+        if (activeForm === 'quality' && selectedMission.order) return <div className="min-h-screen bg-gray-50 flex items-center p-4"><QualityCheckForm missionId={selectedMission.id} clientId={selectedMission.order.clientId} onFinish={handleFinishForm} /></div>;
+        if (activeForm === 'attachment' && selectedMission.order) return <div className="min-h-screen bg-gray-50 flex items-center p-4"><AttachmentForm mission={selectedMission as MissionWithDetails & { order: Order & { client: Client } }} onFinish={handleFinishForm} /></div>;
     }
 
     return (
@@ -110,7 +118,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                 {selectedMission && (
                     <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
                         <div className="w-full bg-white rounded-t-2xl p-6">
-                            <h3 className="text-lg font-bold text-center mb-2">Mission: {selectedMission.order.client.name}</h3>
+                            <h3 className="text-lg font-bold text-center mb-2">{selectedMission.order?.client?.nom || selectedMission.title}</h3>
                             <p className="text-center text-sm text-gray-500 mb-6">Que souhaitez-vous faire ?</p>
                             <div className="space-y-4">
                                 {selectedMission.status === 'PENDING' && (
@@ -127,7 +135,8 @@ export function MobileView({ employee }: { employee: Employee }) {
                                 )}
                                 {selectedMission.status === 'COMPLETED' && (
                                     <>
-                                        <button onClick={() => setActiveForm('attachment')} className="w-full py-4 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition">
+                                        {/* Disable buttons if there is no order */}
+                                        <button onClick={() => setActiveForm('attachment')} disabled={!selectedMission.order} className="w-full py-4 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition disabled:opacity-50">
                                             <CheckCircle size={20} />
                                             <span>Signer l'Attachement</span>
                                         </button>
@@ -135,7 +144,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                                             <Camera size={20} />
                                             <span>Signaler une Observation</span>
                                         </button>
-                                        <button onClick={() => setActiveForm('quality')} className="w-full py-4 bg-indigo-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
+                                        <button onClick={() => setActiveForm('quality')} disabled={!selectedMission.order} className="w-full py-4 bg-indigo-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50">
                                             <ShieldCheck size={20} />
                                             <span>Lancer le Contrôle Qualité</span>
                                         </button>

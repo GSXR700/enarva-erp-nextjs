@@ -91,7 +91,7 @@ export function QualityCheckForm({ missionId, clientId, onFinish }: { missionId:
     const handleChecklistChange = (item: string) => {
         setChecklist(prev => ({ ...prev, [item]: !prev[item] }));
     };
-    
+
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setPhotos(prev => [...prev, ...Array.from(e.target.files!)]);
@@ -104,22 +104,22 @@ export function QualityCheckForm({ missionId, clientId, onFinish }: { missionId:
             return;
         }
         setIsSubmitting(true);
-        
+
         const formData = new FormData();
         formData.append('missionId', missionId);
         formData.append('clientId', clientId);
         formData.append('checklist', JSON.stringify(checklist));
-        
+
         const score = (Object.values(checklist).filter(v => v).length / Object.keys(checklist).length) * 100;
         formData.append('score', String(Math.round(score)));
 
         const sigBlob = await fetch(signature).then(res => res.blob());
         formData.append('signature', sigBlob, 'signature.png');
-        
+
         photos.forEach(photo => formData.append('photos', photo));
 
         await fetch('/api/quality-checks', { method: 'POST', body: formData });
-        
+
         alert("Rapport qualité envoyé !");
         setIsSubmitting(false);
         onFinish();
@@ -128,7 +128,7 @@ export function QualityCheckForm({ missionId, clientId, onFinish }: { missionId:
     return (
         <div className="w-full p-6 rounded-2xl shadow-lg bg-white text-left">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Contrôle Qualité</h2>
-            
+
             <div className="mb-4">
                 <h3 className="block text-sm font-medium text-gray-700 mb-2">Checklist de validation</h3>
                 {Object.keys(checklist).map(item => (

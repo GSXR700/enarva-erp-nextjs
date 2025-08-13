@@ -4,22 +4,15 @@
 
 import prisma from "@/lib/prisma";
 import { unstable_noStore as noStore } from 'next/cache';
+import { LeadStatus } from "@prisma/client";
+import { revalidatePath } from "next/cache"; // <-- FIX: Added the missing import
 
-// Nombre d'éléments à afficher par page pour la pagination
-const ITEMS_PER_PAGE = 10;
-
-/**
- * Récupère une liste paginée de prospects avec les informations de l'utilisateur assigné.
- * Conforme au schéma v6.0.
- * @param page - Le numéro de la page actuelle.
- * @returns Un objet contenant les données des leads, le nombre total, et des indicateurs de pagination.
- */
+// This function fetches all leads for the main list/kanban view.
 export async function getLeads(page: number = 1) {
-  noStore(); // Empêche la mise en cache pour toujours avoir les données à jour
+  noStore();
+  const ITEMS_PER_PAGE = 10;
   try {
     const skip = (page - 1) * ITEMS_PER_PAGE;
-
-    // Exécute les deux requêtes en parallèle pour optimiser les performances
     const [data, total] = await prisma.$transaction([
       prisma.lead.findMany({
         skip,
@@ -28,10 +21,12 @@ export async function getLeads(page: number = 1) {
           assignedTo: {
             select: { name: true, image: true },
           },
+          subcontractorAsSource: {
+            select: { name: true }
+          }
         },
         orderBy: {
-          // Tri par le nouveau champ de date défini dans le schéma
-          date_creation: "desc", 
+          date_creation: "desc",
         },
       }),
       prisma.lead.count(),
@@ -50,23 +45,49 @@ export async function getLeads(page: number = 1) {
   }
 }
 
-/**
- * Récupère une liste d'utilisateurs (limités aux rôles pouvant être assignés) 
- * pour les utiliser dans les formulaires.
- * @returns Une liste d'utilisateurs avec id, nom et image.
- */
-export async function getUsersForAssignment() {
+// This function gets all data needed to populate the lead creation/edit form dropdowns.
+export async function getLeadFormData() {
     noStore();
     try {
-        const users = await prisma.user.findMany({
-            where: {
-                role: { in: ['ADMIN', 'MANAGER', 'FIELD_WORKER'] } // Rôles pouvant être responsables d'un lead
-            },
-            select: { id: true, name: true, image: true }
-        });
-        return JSON.parse(JSON.stringify(users));
+        const [users, subcontractors] = await Promise.all([
+            prisma.user.findMany({
+                where: {
+                    role: { in: ['ADMIN', 'MANAGER', 'FIELD_WORKER'] }
+                },
+                select: { id: true, name: true }
+            }),
+            prisma.subcontractor.findMany({
+                select: { id: true, name: true }
+            })
+        ]);
+        return {
+            users: JSON.parse(JSON.stringify(users)),
+            subcontractors: JSON.parse(JSON.stringify(subcontractors))
+        };
     } catch (error) {
-        console.error("Échec de la récupération des utilisateurs:", error);
-        return [];
+        console.error("Échec de la récupération des données du formulaire de prospect:", error);
+        return { users: [], subcontractors: [] };
+    }
+}
+
+
+// This function updates the status of a lead, e.g., from the Kanban board or StatusSelector.
+export async function updateLeadStatus(leadId: string, newStatus: LeadStatus) {
+    if (!leadId || !newStatus) {
+        return { success: false, error: "ID du prospect ou nouveau statut manquant." };
+    }
+
+    try {
+        await prisma.lead.update({
+            where: { id: leadId },
+            data: { statut: newStatus },
+        });
+
+        revalidatePath("/administration/leads");
+
+        return { success: true };
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour du statut du prospect:", error);
+        return { success: false, error: "Une erreur est survenue sur le serveur." };
     }
 }

@@ -1,11 +1,13 @@
-// enarva-nextjs-app/app/administration/missions/[id]/page.tsx
+// app/administration/missions/[id]/page.tsx
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { MissionView } from "./components/MissionView";
 
+// Ceci est un composant serveur asynchrone pour récupérer les données
 export default async function MissionDetailsPage({ params }: { params: { id: string } }) {
-  // On récupère la mission ET la liste de tous les sous-traitants en parallèle
-  const [mission, subcontractors] = await Promise.all([
+
+  // Récupérer toutes les données nécessaires en parallèle pour plus d'efficacité
+  const [mission, employees, subcontractors] = await Promise.all([
     prisma.mission.findUnique({
       where: { id: params.id },
       include: {
@@ -14,12 +16,7 @@ export default async function MissionDetailsPage({ params }: { params: { id: str
             client: true,
           },
         },
-        assignedTo: {
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        },
+        assignedTo: true, // Récupérer l'objet employé complet
         observations: {
           orderBy: {
             reportedAt: 'desc',
@@ -31,16 +28,19 @@ export default async function MissionDetailsPage({ params }: { params: { id: str
             validatedAt: 'desc'
           }
         },
-        subcontractor: true, // Inclure le sous-traitant déjà assigné
+        subcontractor: true,
       },
     }),
-    prisma.subcontractor.findMany({ orderBy: { name: 'asc' }}) // Récupérer tous les partenaires
+    prisma.employee.findMany({ // Récupérer tous les employés pour le menu déroulant de modification
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }]
+    }),
+    prisma.subcontractor.findMany({ orderBy: { name: 'asc' }}) // Récupérer tous les sous-traitants
   ]);
 
   if (!mission) {
-    notFound();
+    return notFound();
   }
 
-  // On passe les deux listes de données au composant client
-  return <MissionView mission={mission} subcontractors={subcontractors} />;
+  // Transmettre toutes les données récupérées au nouveau composant client
+  return <MissionView mission={mission} allEmployees={employees} allSubcontractors={subcontractors} />;
 }

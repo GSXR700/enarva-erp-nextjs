@@ -1,4 +1,4 @@
-// enarva-nextjs-app/app/mobile/hooks/useLocationTracker.ts
+// app/mobile/hooks/useLocationTracker.ts
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -30,7 +30,7 @@ export function useLocationTracker(isActive: boolean) {
       // Demande la permission et envoie la position immédiatement
       sendLocation();
       // Puis la renvoie toutes les 2 minutes
-      intervalRef.current = setInterval(sendLocation, 120000); 
+      intervalRef.current = setInterval(sendLocation, 120000);
     }
 
     return () => {

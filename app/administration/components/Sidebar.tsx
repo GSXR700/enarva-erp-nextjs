@@ -9,10 +9,10 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase, ChevronDown,
   Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
-  ShoppingBag, Handshake, Car, Wrench, LucideIcon, Contact // <-- NOUVELLE ICÔNE IMPORTÉE
+  ShoppingBag, Handshake, Car, Wrench, LucideIcon, Contact
 } from "lucide-react";
 import { Role } from "@prisma/client";
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -39,7 +39,6 @@ const menuItems: {
     {
         name: 'Ventes & CRM', icon: <Handshake size={20} />, roles: ['ADMIN', 'MANAGER'],
         subItems: [
-            // --- AJOUT DU NOUVEAU LIEN ICI ---
             { name: 'Leads (Prospects)', href: '/administration/leads', icon: <Contact size={16} /> },
             { name: 'Clients', href: '/administration/clients', icon: <Users size={16} /> },
             { name: 'Devis', href: '/administration/quotes', icon: <FileText size={16} /> },
@@ -75,7 +74,7 @@ const menuItems: {
 const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   const pathname = usePathname();
   const sidebar = useRef<HTMLDivElement>(null);
-  
+
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
@@ -89,12 +88,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   }, [sidebarOpen, setSidebarOpen]);
 
   useEffect(() => {
-    const activeItem = menuItems.find(item => 
+    const activeItem = menuItems.find(item =>
       item.subItems?.some(sub => pathname.startsWith(sub.href))
     );
     setOpenDropdown(activeItem ? activeItem.name : null);
   }, [pathname]);
-  
+
   useEffect(() => {
     if (isCollapsed) {
         setOpenDropdown(null);
@@ -151,17 +150,19 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                                 <div key={item.name}>
                                     <button
                                         onClick={() => handleDropdownToggle(item.name)}
-                                        className={cn("group flex w-full items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out",
-                                            "lg:justify-center lg:hover:justify-start",
+                                        className={cn(
+                                            "group flex w-full items-center justify-between rounded-md p-3 font-medium duration-200 ease-in-out",
                                             isActive ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                                         )}
                                     >
-                                        {item.icon}
-                                        <span className={cn("whitespace-nowrap flex-1 text-left duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
+                                        <div className="flex items-center gap-3">
+                                            {item.icon}
+                                            <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
+                                        </div>
                                         <ChevronDown size={16} className={cn("transform transition-transform duration-200", isDropdownOpen && "rotate-180", isCollapsed && "lg:hidden")} />
                                     </button>
-                                    <div className={cn("overflow-hidden transition-all duration-300 ease-in-out", isDropdownOpen ? "max-h-60" : "max-h-0")}>
-                                        <ul className="mt-2 flex flex-col gap-1 pl-8">
+                                    <div className={cn("overflow-hidden transition-all duration-300 ease-in-out", isCollapsed ? "max-h-0" : (isDropdownOpen ? "max-h-60" : "max-h-0"))}>
+                                        <ul className={cn("mt-2 flex-col gap-1 pl-8", isCollapsed ? "hidden" : "flex")}>
                                             {item.subItems.map(subItem => (
                                                 <li key={subItem.name}>
                                                     <Link href={subItem.href} className={cn("group relative flex items-center gap-3 rounded-md p-2 text-sm duration-200", pathname.startsWith(subItem.href) ? "text-primary dark:text-white" : "text-gray-500 hover:text-primary dark:text-dark-subtle dark:hover:text-white")}>
@@ -175,12 +176,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                                 </div>
                             );
                         }
-                        
+
                         return (
                             <div key={item.name}>
                                 <Link href={item.href || '#'}
                                     className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out",
-                                        "lg:justify-center lg:hover:justify-start",
+                                        isCollapsed && "lg:justify-center",
                                         (pathname.startsWith(item.href || '#') && item.href !== '/administration') || pathname === item.href ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                                     )}
                                 >
@@ -195,7 +196,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                     <Link
                         href="/administration/settings"
                         className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700",
-                            "lg:justify-center lg:hover:justify-start",
+                            isCollapsed && "lg:justify-center",
                             pathname.startsWith('/administration/settings') ? 'bg-gray-100 dark:bg-gray-700' : ''
                         )}
                     >

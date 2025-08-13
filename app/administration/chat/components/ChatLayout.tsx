@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/app/administration/chat/components/ChatLayout.tsx
+// app/administration/chat/components/ChatLayout.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -41,7 +41,6 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Effet pour gérer tous les événements en temps réel
   useEffect(() => {
     if (!socket || !session) return;
 
@@ -58,19 +57,11 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
         fetch('/api/chat/messages/read', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ conversationId: newMessage.conversationId, recipientId: newMessage.sender.id }),
+            body: JSON.stringify({ conversationId: newMessage.conversationId }),
         });
       }
     };
-    
-    // Handler pour le statut "lu"
-    const handleMessagesRead = ({ conversationId }: { conversationId: string }) => {
-        if (conversationId === selectedConversationRef.current?.id) {
-            setMessages(prev => prev.map(msg => ({ ...msg, readAt: new Date().toISOString() })));
-        }
-    };
 
-    // Handler pour le statut en ligne/hors ligne
     const handleUserStatusChange = ({ userId, isOnline, lastSeen }: { userId: string; isOnline: boolean; lastSeen?: Date }) => {
         const updateUser = (user: SimpleUser) => user.id === userId ? { ...user, isOnline, lastSeen } : user;
         setConversations(prev => prev.map(convo => ({ ...convo, participants: convo.participants.map(updateUser) })));
@@ -80,12 +71,10 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
     };
 
     socket.on('new-message', handleNewMessage);
-    socket.on('messages-read', handleMessagesRead);
     socket.on('user-status-changed', handleUserStatusChange);
-    
+
     return () => {
       socket.off('new-message', handleNewMessage);
-      socket.off('messages-read', handleMessagesRead);
       socket.off('user-status-changed', handleUserStatusChange);
     };
   }, [socket, session, fetchConversations]);
@@ -106,27 +95,23 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
     }
 
     if (conversation.unreadCount > 0) {
-        const otherParticipant = conversation.participants.find(p => p.id !== session?.user.id);
-        if (otherParticipant) {
-            fetch('/api/chat/messages/read', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ conversationId: conversation.id, recipientId: otherParticipant.id }),
-            });
-            setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, unreadCount: 0 } : c));
-        }
+        fetch('/api/chat/messages/read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conversationId: conversation.id }),
+        });
+        setConversations(prev => prev.map(c => c.id === conversation.id ? { ...c, unreadCount: 0 } : c));
     }
   };
-  
+
   const handleConversationStarted = () => {
     setIsModalOpen(false);
     fetchConversations();
   }
-  
+
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !session || !selectedConversation) return;
 
-    // L'API s'occupe de renvoyer l'événement socket, ce qui mettra à jour l'UI.
     await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,12 +140,12 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
       </div>
       <div className="hidden md:flex w-2/3 flex-col">
         {selectedConversation ? (
-            <MessageArea 
+            <MessageArea
                 key={selectedConversation.id}
-                conversation={selectedConversation} 
+                conversation={selectedConversation}
                 messages={messages}
                 onSendMessage={handleSendMessage}
-                isLoading={isLoadingMessages} // <-- La prop est maintenant valide
+                isLoading={isLoadingMessages}
                 isTyping={isTyping}
             />
         ) : (
@@ -171,7 +156,7 @@ export function ChatLayout({ allUsers }: { allUsers: SimpleUser[] }) {
             </div>
         )}
       </div>
-      <NewConversationModal 
+      <NewConversationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         users={allUsers}

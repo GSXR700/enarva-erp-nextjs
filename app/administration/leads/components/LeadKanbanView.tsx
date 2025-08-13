@@ -65,8 +65,8 @@ export const LeadKanbanView = ({ initialData }: LeadKanbanViewProps) => {
                 return (
                     <Droppable key={id} droppableId={id}>
                         {(provided, snapshot) => (
-                            <div 
-                                ref={provided.innerRef} 
+                            <div
+                                ref={provided.innerRef}
                                 {...provided.droppableProps}
                                 className={`bg-gray-100/70 dark:bg-dark-surface rounded-lg w-80 flex-shrink-0 flex flex-col transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                             >

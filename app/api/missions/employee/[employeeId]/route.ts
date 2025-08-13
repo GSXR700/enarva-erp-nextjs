@@ -18,20 +18,14 @@ export async function GET(
       where: {
         assignedToId: employeeId,
         status: {
-          in: [MissionStatus.PENDING, MissionStatus.IN_PROGRESS],
+          // --- FIX: Include missions awaiting approval in the mobile view ---
+          in: [MissionStatus.PENDING, MissionStatus.IN_PROGRESS, MissionStatus.APPROBATION],
         },
-        // Vous pouvez décommenter cette section pour ne voir que les missions du jour
-        /*
-        scheduledStart: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(23, 59, 59, 999)),
-        },
-        */
       },
       include: {
         order: {
           include: {
-            client: true, // Pour avoir l'adresse et le nom du client
+            client: true, // To get the client's name and address
           },
         },
       },

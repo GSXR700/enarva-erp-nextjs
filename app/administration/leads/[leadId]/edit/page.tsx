@@ -1,8 +1,8 @@
 // app/administration/leads/[leadId]/edit/page.tsx
-
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { LeadForm } from "../../components/LeadForm";
+import { getLeadFormData } from "../../actions";
+import { EditLeadClientPage } from "./EditLeadClientPage"; // We will create this new component
 
 interface EditLeadPageProps {
     params: {
@@ -10,35 +10,28 @@ interface EditLeadPageProps {
     }
 }
 
+// This is now an async Server Component
 const EditLeadPage = async ({ params }: EditLeadPageProps) => {
 
-    const lead = await prisma.lead.findUnique({
-        where: {
-            id: params.leadId,
-        }
-    });
+    // Fetch all necessary data in parallel for efficiency
+    const [lead, { users, subcontractors }] = await Promise.all([
+        prisma.lead.findUnique({
+            where: { id: params.leadId }
+        }),
+        getLeadFormData() // Fetches users and subcontractors
+    ]);
 
     if (!lead) {
         return notFound();
     }
 
     return (
-        <div className="p-4 md:p-6 bg-white dark:bg-dark-surface rounded-lg shadow-sm">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Modifier le Prospect</h1>
-                <p className="text-sm text-gray-500 dark:text-dark-subtle">Mettez à jour les informations de "{lead.nom}".</p>
-            </div>
-
-            {/* Le formulaire est un composant client. 
-              En passant les données ici, on bénéficie du rendu serveur pour la récupération initiale.
-            */}
-            <LeadForm 
-                initialData={JSON.parse(JSON.stringify(lead))} 
-                onFormSubmit={() => {
-                    // La redirection sera gérée côté client après la soumission
-                }} 
-            />
-        </div>
+        // Pass all fetched data to the new Client Component
+        <EditLeadClientPage
+            lead={lead}
+            users={users}
+            subcontractors={subcontractors}
+        />
     );
 }
 

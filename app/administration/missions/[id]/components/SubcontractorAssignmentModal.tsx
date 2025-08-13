@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { Subcontractor } from "@prisma/client";
-import { assignSubcontractor } from "../../actions/subcontractingActions";
+import { assignSubcontractor } from "../../actions";
 import { Loader2 } from "lucide-react";
 
 interface Props {

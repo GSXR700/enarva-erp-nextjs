@@ -1,3 +1,4 @@
+// app/administration/subcontractors/components/SubcontractorFormModal.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -51,8 +52,13 @@ export function SubcontractorFormModal({ isOpen, onClose, subcontractor }: Props
               </div>
               <div>
                 <label htmlFor="serviceType" className="block mb-1 text-sm font-medium text-gray-700 dark:text-dark-subtle">Type de Service</label>
-                <input id="serviceType" name="serviceType" defaultValue={subcontractor?.serviceType || ""} placeholder="Ex: Nettoyage Tapis" className="w-full p-2 border border-gray-300 rounded bg-gray-50 dark:bg-dark-background dark:border-dark-border dark:text-dark-text" required />
+                <input id="serviceType" name="serviceType" defaultValue={subcontractor?.serviceType || ""} placeholder="Ex: Nettoyage Tapis, Apporteur d'Affaires" className="w-full p-2 border border-gray-300 rounded bg-gray-50 dark:bg-dark-background dark:border-dark-border dark:text-dark-text" required />
               </div>
+            </div>
+            {/* ADDED: Commission Rate Field */}
+            <div>
+              <label htmlFor="commissionRate" className="block mb-1 text-sm font-medium text-gray-700 dark:text-dark-subtle">Taux de Commission (%)</label>
+              <input id="commissionRate" name="commissionRate" type="number" step="0.1" defaultValue={subcontractor?.commissionRate || 0} placeholder="Ex: 10" className="w-full p-2 border border-gray-300 rounded bg-gray-50 dark:bg-dark-background dark:border-dark-border dark:text-dark-text" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

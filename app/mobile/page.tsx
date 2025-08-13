@@ -11,7 +11,7 @@ async function getEmployeeForCurrentUser() {
     if (!session?.user?.id) {
       return null;
     }
-    
+
     const employee = await prisma.employee.findUnique({
       where: {
         userId: session.user.id,
@@ -36,6 +36,6 @@ export default async function MobileAppPage() {
             </div>
         );
     }
-    
+
     return <MobileView employee={employee} />;
 }

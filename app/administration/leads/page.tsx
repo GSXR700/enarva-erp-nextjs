@@ -1,6 +1,5 @@
 // app/administration/leads/page.tsx
-
-import { getLeads, getUsersForAssignment } from "./actions";
+import { getLeads, getLeadFormData } from "./actions";
 import { LeadsPageClient } from "./components/LeadsPageClient";
 
 interface LeadsPageProps {
@@ -12,18 +11,19 @@ interface LeadsPageProps {
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const page = Number(searchParams.page) || 1;
   
-  // On récupère les leads et les utilisateurs en parallèle pour plus d'efficacité
-  const [{ data, total, hasNextPage, hasPrevPage }, users] = await Promise.all([
+  // On récupère les leads ET les données pour les formulaires en parallèle
+  const [{ data, total, hasNextPage, hasPrevPage }, { users, subcontractors }] = await Promise.all([
     getLeads(page),
-    getUsersForAssignment()
+    getLeadFormData()
   ]);
 
   return (
     <LeadsPageClient 
       leads={data}
-      users={users} // On passe la liste des utilisateurs pour les formulaires
+      users={users}
+      subcontractors={subcontractors}
       totalItems={total}
-      itemsPerPage={10} // Doit correspondre à la valeur dans `actions.ts`
+      itemsPerPage={10}
       hasNextPage={hasNextPage}
       hasPrevPage={hasPrevPage}
     />

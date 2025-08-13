@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/app/administration/invoices/[id]/components/InvoiceView.tsx
+// app/administration/invoices/[id]/components/InvoiceView.tsx
 "use client";
 
 import type { Invoice, Client, Order, CompanyInfo, Quote } from "@prisma/client";
@@ -7,19 +7,19 @@ import { updateInvoiceStatus } from "../actions";
 import { generateInvoicePDF } from "@/lib/pdfGenerator";
 import { Download, CheckCircle } from "lucide-react";
 
-type FullInvoice = Invoice & { 
-  client: Client; 
-  order: Order & { 
-    quote: Quote | null 
-  }; 
+type FullInvoice = Invoice & {
+  client: Client;
+  order: Order & {
+    quote: Quote | null
+  };
 };
 
-// CORRECTION : On utilise le même type "intelligent"
 type AnyItem = {
   designation: string;
-  quantity?: string;
-  unitPrice?: string;
-  total?: number;
+  quantity: string | number;
+  unitPrice: string | number;
+  total: number;
+  // Legacy fields for compatibility
   qte?: number;
   pu_ht?: number;
   total_ht?: number;
@@ -39,11 +39,12 @@ export function InvoiceView({ invoice, companyInfo }: { invoice: FullInvoice; co
   };
 
   const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(date));
-  const formatCurrency = (amount: number | null | undefined) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount || 0);
-  
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(numericAmount || 0);
+  }
+
   const items = invoice.items as AnyItem[];
-  // Using order's items property directly since quote details are part of the items
-  const orderItems = invoice.items;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -87,15 +88,16 @@ export function InvoiceView({ invoice, companyInfo }: { invoice: FullInvoice; co
                     {items.map((item, index) => (
                         <tr key={index}>
                             <td className="p-2 text-gray-800 dark:text-dark-text">{item.designation}</td>
-                            <td className="p-2 text-center text-gray-600 dark:text-dark-subtle">{item.quantity ?? item.qte}</td>
-                            <td className="p-2 text-right text-gray-600 dark:text-dark-subtle">{item.unitPrice ?? formatCurrency(item.pu_ht)}</td>
+                            <td className="p-2 text-center text-gray-600 dark:text-dark-subtle">{String(item.quantity ?? item.qte)}</td>
+                            {/* --- THIS IS THE FIX --- */}
+                            <td className="p-2 text-right text-gray-600 dark:text-dark-subtle">{formatCurrency(item.unitPrice ?? item.pu_ht)}</td>
                             <td className="p-2 text-right font-medium text-gray-800 dark:text-dark-text">{formatCurrency(item.total ?? item.total_ht)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
         </div>
-        
+
         <div className="flex justify-end mt-8">
             <div className="w-full max-w-xs space-y-2">
                 <div className="flex justify-between text-gray-600 dark:text-dark-subtle"><span>Total HT</span><span>{formatCurrency(invoice.totalHT)}</span></div>

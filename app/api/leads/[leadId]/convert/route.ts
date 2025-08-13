@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 import { LeadStatus } from "@prisma/client";
+import { getNextQuoteNumber } from "@/app/administration/quotes/actions"; // <-- IMPORT THE CENTRALIZED FUNCTION
 
 export async function POST(
   req: Request,
@@ -26,7 +27,7 @@ export async function POST(
       return new NextResponse("Prospect non trouvé", { status: 404 });
     }
 
-    if (lead.statut === LeadStatus.client_converted) {
+    if (lead.statut === LeadStatus.qualified) {
       return new NextResponse("Ce prospect a déjà été converti", { status: 400 });
     }
 
@@ -42,8 +43,7 @@ export async function POST(
             nom: lead.nom,
             email: lead.email,
             telephone: lead.telephone,
-            // Le champ `adresse` n'existe pas sur le modèle Lead dans votre schéma
-            type: 'ENTREPRISE', // Vous pouvez adapter cette logique
+            type: 'ENTREPRISE', 
           },
         });
       }
@@ -52,27 +52,21 @@ export async function POST(
       await tx.lead.update({
         where: { id: lead.id },
         data: {
-          statut: LeadStatus.client_converted,
+          statut: LeadStatus.qualified,
           converti_en_client: true,
-          client_id: client.id, // On enregistre le lien vers le client
+          client_id: client.id,
         },
       });
 
-      // 3. Créer le numéro de devis
-      const lastQuote = await tx.quote.findFirst({
-        orderBy: { createdAt: 'desc' },
-        select: { quoteNumber: true }
-      });
-      const newQuoteNumber = lastQuote?.quoteNumber
-        ? `QU-${(parseInt(lastQuote.quoteNumber.split('-')[1]) + 1).toString().padStart(5, '0')}`
-        : 'QU-00001';
+      // 3. --- FIX: Use the centralized numbering logic ---
+      const newQuoteNumber = await getNextQuoteNumber();
 
-      // 4. Créer le devis et le lier UNIQUEMENT au client
+      // 4. Créer le devis
       const quote = await tx.quote.create({
         data: {
-          quoteNumber: newQuoteNumber,
-          object: `Devis pour ${client.nom}`,
-          clientId: client.id, // ** La seule liaison nécessaire **
+          quoteNumber: newQuoteNumber, // Use the new number
+          object: lead.quoteObject ?? `Devis pour ${client.nom}`,
+          clientId: client.id,
           items: [],
           totalHT: 0,
           tva: 0,

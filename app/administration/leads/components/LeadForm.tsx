@@ -4,185 +4,165 @@
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { leadSchema, LeadFormValues } from "../validation";
-import { Lead, LeadType, LeadCanal, LeadStatus } from "@prisma/client";
+import { Lead, LeadType, LeadCanal, User, Subcontractor } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import React from 'react';
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+// Helper to format date for input[type=date] which requires 'YYYY-MM-DD'
+const formatDateForInput = (date: Date | null | undefined): string => {
+    if (!date) return '';
+    return new Date(date).toISOString().split('T')[0];
+};
 
 interface LeadFormProps {
   initialData?: Lead | null;
-  onFormSubmit: () => void; // Gardé pour la modale de création
+  users: User[];
+  subcontractors: Subcontractor[];
+  onFormSubmit: () => void;
 }
 
-export const LeadForm: React.FC<LeadFormProps> = ({ initialData, onFormSubmit }) => {
+export const LeadForm: React.FC<LeadFormProps> = ({ initialData, users, subcontractors, onFormSubmit }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const isEditMode = !!initialData;
 
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
-    defaultValues: {
-      contactName: "",
-      companyName: "",
-      email: "",
-      phone: "",
-      canal: LeadCanal.MANUEL,
-      type: LeadType.BtoC,
-      source: "",
-      notes: ""
-    } as LeadFormValues
-  });
-
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      // Map database fields to form fields
-      const formData: LeadFormValues = {
-        contactName: initialData.nom,
-        companyName: "", // Not in database schema yet
+    // Correctly map initialData to form values, handling nulls for optional fields
+    defaultValues: initialData ? {
+        nom: initialData.nom,
+        telephone: initialData.telephone ?? "",
         email: initialData.email ?? "",
-        phone: initialData.telephone ?? "",
         canal: initialData.canal,
         type: initialData.type,
         source: initialData.source ?? "",
-        notes: initialData.commentaire ?? ""
-      };
-      form.reset(formData);
-    } else {
-      form.reset({
-        contactName: "",
-        companyName: "",
+        quoteObject: initialData.quoteObject ?? "",
+        commentaire: initialData.commentaire ?? "",
+        assignedToId: initialData.assignedToId ?? undefined,
+        subcontractorAsSourceId: initialData.subcontractorAsSourceId ?? undefined,
+        date_intervention: formatDateForInput(initialData.date_intervention),
+        date_cloture: formatDateForInput(initialData.date_cloture),
+    } : {
+        nom: "",
+        telephone: "",
         email: "",
-        phone: "",
         canal: LeadCanal.MANUEL,
         type: LeadType.BtoC,
         source: "",
-        notes: "",
-      });
+        quoteObject: "",
+        commentaire: "",
+        date_intervention: "",
+        date_cloture: "",
     }
-  }, [initialData, form, isEditMode]);
+  });
+
+  // Watch the "canal" field to conditionally show the subcontractor dropdown
+  const watchedCanal = form.watch("canal");
 
   const onSubmit: SubmitHandler<LeadFormValues> = async (values) => {
     setIsLoading(true);
-    setError(null);
     try {
       const url = isEditMode ? `/api/leads/${initialData?.id}` : '/api/leads';
       const method = isEditMode ? 'PATCH' : 'POST';
 
-      // Map form fields back to database fields
-      const dbValues = {
-        nom: values.contactName,
-        telephone: values.phone,
-        email: values.email,
-        canal: values.canal,
-        type: values.type,
-        source: values.source,
-        commentaire: values.notes
-      };
-
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dbValues),
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) {
-        throw new Error(`Échec de la ${isEditMode ? 'mise à jour' : 'création'}.`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Échec de la ${isEditMode ? 'mise à jour' : 'création'}.`);
       }
 
-      alert(`Prospect ${isEditMode ? 'mis à jour' : 'créé'}.`);
-
-      if (isEditMode) {
-        router.push(`/administration/leads/${initialData?.id}`); // Redirige vers la page de détail
-      } else {
-        onFormSubmit(); // Ferme la modale de création
-      }
+      toast.success(`Prospect ${isEditMode ? 'mis à jour' : 'créé avec succès'}.`);
       router.refresh();
+      onFormSubmit();
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inconnue.");
+      toast.error(err instanceof Error ? err.message : "Une erreur inconnue est survenue.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    if(isEditMode) {
-        router.back();
-    } else {
-        onFormSubmit();
-    }
-  }
-
-  const buttonText = isEditMode ? "Enregistrer les modifications" : "Créer le Prospect";
-  const loadingText = isEditMode ? "Enregistrement..." : "Création...";
-
   return (
-    <form className="space-y-6" onSubmit={form.handleSubmit((data) => onSubmit(data as LeadFormValues))}>
+    <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nom du Contact *</label>
-                <input id="contactName" {...form.register("contactName")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.contactName && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.contactName.message}</p>}
+                <label htmlFor="nom" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nom du Contact *</label>
+                <input id="nom" {...form.register("nom")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+                {form.formState.errors.nom && <p className="text-red-500 text-xs mt-1">{form.formState.errors.nom.message}</p>}
             </div>
              <div>
-                <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Nom de l'entreprise</label>
-                <input id="companyName" {...form.register("companyName")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.companyName && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.companyName.message}</p>}
-            </div>
-            <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Téléphone</label>
-                <input id="phone" {...form.register("phone")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.phone && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.phone.message}</p>}
+                <label htmlFor="telephone" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Téléphone</label>
+                <input id="telephone" {...form.register("telephone")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
             </div>
             <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
-                <input id="email" type="email" {...form.register("email")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.email && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.email.message}</p>}
+                <input id="email" type="email" {...form.register("email")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+                {form.formState.errors.email && <p className="text-red-500 text-xs mt-1">{form.formState.errors.email.message}</p>}
             </div>
             <div>
-                <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Type</label>
-                <select id="type" {...form.register("type")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-                    {Object.values(LeadType).map(type => <option key={type} value={type} className="dark:bg-gray-800">{type}</option>)}
+                <label htmlFor="assignedToId" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Assigné à</label>
+                <select id="assignedToId" {...form.register("assignedToId")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background">
+                    <option value="">Non assigné</option>
+                    {users.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
                 </select>
-                {form.formState.errors.type && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.type.message}</p>}
             </div>
-            <div>
-                <label htmlFor="canal" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Canal</label>
-                <select id="canal" {...form.register("canal")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400">
-                    {Object.values(LeadCanal).map(canal => <option key={canal} value={canal} className="dark:bg-gray-800">{canal}</option>)}
+             <div>
+                <label htmlFor="canal" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Canal d'acquisition</label>
+                <select id="canal" {...form.register("canal")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background">
+                    {Object.values(LeadCanal).map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-                {form.formState.errors.canal && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.canal.message}</p>}
             </div>
+             {watchedCanal === 'APPORTEUR_AFFAIRES' ? (
+                <div>
+                    <label htmlFor="subcontractorAsSourceId" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Apporteur d'Affaires</label>
+                    <select id="subcontractorAsSourceId" {...form.register("subcontractorAsSourceId")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background">
+                        <option value="">Sélectionner un partenaire</option>
+                        {subcontractors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                </div>
+             ) : (
+                <div>
+                    <label htmlFor="source" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Source (Détail)</label>
+                    <input id="source" {...form.register("source")} placeholder="Ex: Campagne Facebook 'Promo Été'" className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+                </div>
+             )}
             <div>
-                <label htmlFor="source" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Source (Campagne, etc.)</label>
-                <input id="source" {...form.register("source")} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.source && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{form.formState.errors.source.message}</p>}
+                <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Type de Lead</label>
+                <select id="type" {...form.register("type")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background">
+                    {Object.values(LeadType).map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
             </div>
             <div className="md:col-span-2">
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Notes</label>
-                <textarea id="notes" {...form.register("notes")} rows={4} className="w-full p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400" />
-                {form.formState.errors.notes && <p className="text-red-500 text-xs mt-1">{form.formState.errors.notes.message}</p>}
+                <label htmlFor="quoteObject" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Objet du Devis *</label>
+                <input id="quoteObject" {...form.register("quoteObject")} placeholder="Ex: Nettoyage de fin de chantier pour une villa à Targa" className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+                {form.formState.errors.quoteObject && <p className="text-red-500 text-xs mt-1">{form.formState.errors.quoteObject.message}</p>}
+            </div>
+            <div>
+                <label htmlFor="date_intervention" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date d'Intervention Prévue</label>
+                <input id="date_intervention" type="date" {...form.register("date_intervention")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+            </div>
+            <div>
+                <label htmlFor="date_cloture" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date de Clôture</label>
+                <input id="date_cloture" type="date" {...form.register("date_cloture")} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
+            </div>
+            <div className="md:col-span-2">
+                <label htmlFor="commentaire" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Commentaires</label>
+                <textarea id="commentaire" {...form.register("commentaire")} rows={4} className="w-full p-2 border rounded-md bg-white dark:bg-dark-background" />
             </div>
         </div>
 
-      {error && <p className="text-red-600 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-md border border-red-200 dark:border-red-800">{error}</p>}
-
       <div className="flex justify-end items-center pt-4 space-x-3">
-        <button 
-          type="button" 
-          onClick={handleCancel} 
-          className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-300 dark:border-gray-600 transition-colors"
-        >
-          Annuler
-        </button>
-        <button 
-          type="submit" 
-          disabled={isLoading} 
-          className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600 h-10 py-2 px-4 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? loadingText : buttonText}
+        <button type="button" onClick={onFormSubmit} className="px-4 py-2 rounded-md text-sm font-medium bg-gray-100 hover:bg-gray-200">Annuler</button>
+        <button type="submit" disabled={isLoading} className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-white hover:bg-primary/90 h-10 py-2 px-4">
+          {isLoading ? <Loader2 className="animate-spin" /> : (isEditMode ? "Enregistrer" : "Créer Prospect")}
         </button>
       </div>
     </form>

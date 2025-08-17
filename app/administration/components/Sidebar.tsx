@@ -1,5 +1,4 @@
 // app/administration/components/Sidebar.tsx
-
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -94,14 +93,15 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
     setOpenDropdown(activeItem ? activeItem.name : null);
   }, [pathname]);
 
-  useEffect(() => {
-    if (isCollapsed) {
-        setOpenDropdown(null);
-    }
-  }, [isCollapsed]);
-
   const handleDropdownToggle = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  const handleMouseLeave = () => {
+      if (window.innerWidth > 1024) {
+          setIsCollapsed(true);
+          setOpenDropdown(null); // Fermer les menus uniquement sur le survol du bureau
+      }
   };
 
   return (
@@ -114,7 +114,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
         <aside
             ref={sidebar}
             onMouseEnter={() => window.innerWidth > 1024 && setIsCollapsed(false)}
-            onMouseLeave={() => window.innerWidth > 1024 && setIsCollapsed(true)}
+            onMouseLeave={handleMouseLeave}
             className={cn(
                 "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
                 "lg:static lg:translate-x-0",
@@ -161,8 +161,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                                         </div>
                                         <ChevronDown size={16} className={cn("transform transition-transform duration-200", isDropdownOpen && "rotate-180", isCollapsed && "lg:hidden")} />
                                     </button>
-                                    <div className={cn("overflow-hidden transition-all duration-300 ease-in-out", isCollapsed ? "max-h-0" : (isDropdownOpen ? "max-h-60" : "max-h-0"))}>
-                                        <ul className={cn("mt-2 flex-col gap-1 pl-8", isCollapsed ? "hidden" : "flex")}>
+                                    <div className={cn(
+                                        "overflow-hidden transition-all duration-300 ease-in-out",
+                                        isDropdownOpen ? "max-h-60" : "max-h-0"
+                                    )}>
+                                        <ul className="mt-2 flex flex-col gap-1 pl-8">
                                             {item.subItems.map(subItem => (
                                                 <li key={subItem.name}>
                                                     <Link href={subItem.href} className={cn("group relative flex items-center gap-3 rounded-md p-2 text-sm duration-200", pathname.startsWith(subItem.href) ? "text-primary dark:text-white" : "text-gray-500 hover:text-primary dark:text-dark-subtle dark:hover:text-white")}>

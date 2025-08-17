@@ -24,8 +24,8 @@ export function QualityCheckCard({ qualityCheck, missionId }: QualityCheckCardPr
         }
     }
   }
-
-  // Safely parse the checklist JSON, providing a default empty object
+  
+  // Analyse sécurisée du JSON de la checklist, avec un objet vide par défaut
   const checklistItems = qualityCheck?.checklist ? JSON.parse(qualityCheck.checklist as string) : {};
 
   return (
@@ -40,7 +40,7 @@ export function QualityCheckCard({ qualityCheck, missionId }: QualityCheckCardPr
                             <span>{qualityCheck.score}/100</span>
                         </div>
                         <div className="flex items-center gap-2">
-                             <button onClick={() => {/* TODO: Implement Edit Modal Logic */}} className="p-2 text-gray-400 hover:text-blue-500 rounded-full" aria-label="Modifier le rapport qualité">
+                             <button onClick={() => {/* TODO: Logique pour ouvrir le modal de modification */}} className="p-2 text-gray-400 hover:text-blue-500 rounded-full" aria-label="Modifier le rapport qualité">
                                 <Edit size={16}/>
                              </button>
                              <button onClick={handleDelete} className="p-2 text-gray-400 hover:text-red-500 rounded-full" aria-label="Supprimer le rapport qualité">
@@ -48,7 +48,7 @@ export function QualityCheckCard({ qualityCheck, missionId }: QualityCheckCardPr
                              </button>
                         </div>
                     </div>
-
+                    
                     <div className="space-y-2 mb-4">
                         <h3 className="font-semibold text-base dark:text-dark-subtle">Checklist de Validation</h3>
                         <ul className="list-inside space-y-1 text-sm">

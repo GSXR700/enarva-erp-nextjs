@@ -5,9 +5,9 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 
-// ========================================================
-// CRÉER UN NOUVEAU LEAD (POST) - v6.0
-// ========================================================
+/**
+ * POST /api/leads - Créer un nouveau lead
+ */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,63 +16,111 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    // On utilise les nouveaux noms de champs
-    const { nom, email, telephone, canal, type, source, commentaire, quoteObject } = body;
+    const { 
+      nom, 
+      telephone, 
+      email, 
+      canal, 
+      statut, 
+      type, 
+      source, 
+      commentaire, 
+      quoteObject,
+      assignedToId,
+      subcontractorAsSourceId,
+      date_intervention,
+      date_cloture
+    } = body;
 
     if (!nom) {
-      return new NextResponse("Le nom du contact est obligatoire", { status: 400 });
+      return new NextResponse("Le nom du prospect est requis", { status: 400 });
     }
 
-    const lead = await prisma.lead.create({
+    const newLead = await prisma.lead.create({
       data: {
         nom,
-        email,
         telephone,
+        email,
         canal,
+        statut,
         type,
         source,
         commentaire,
-        quoteObject, // New field
-        // Les autres champs comme le statut ont des valeurs par défaut
+        quoteObject,
+        assignedToId: assignedToId || null,
+        subcontractorAsSourceId: subcontractorAsSourceId || null,
+        date_intervention: date_intervention ? new Date(date_intervention) : null,
+        date_cloture: date_cloture ? new Date(date_cloture) : null,
       },
+      include: {
+        assignedTo: {
+          select: { name: true, image: true }
+        },
+        subcontractorAsSource: {
+          select: { name: true }
+        }
+      }
     });
 
-    return NextResponse.json(lead);
-
+    return NextResponse.json(newLead, { status: 201 });
   } catch (error) {
     console.error("[LEADS_POST_ERROR]", error);
     return new NextResponse("Erreur Interne du Serveur", { status: 500 });
   }
 }
 
-// ========================================================
-// RÉCUPÉRER LA LISTE DES LEADS (GET) - v6.0
-// ========================================================
+/**
+ * GET /api/leads - Récupérer tous les leads (pour API externe si nécessaire)
+ */
 export async function GET(req: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return new NextResponse("Accès non autorisé", { status: 403 });
-        }
-
-        const leads = await prisma.lead.findMany({
-            include: {
-                assignedTo: {
-                    select: {
-                        name: true,
-                        image: true,
-                    }
-                }
-            },
-            orderBy: {
-                date_creation: 'desc'
-            }
-        });
-
-        return NextResponse.json(leads);
-
-    } catch (error) {
-        console.error("[LEADS_GET_ERROR]", error);
-        return new NextResponse("Erreur Interne du Serveur", { status: 500 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return new NextResponse("Accès non autorisé", { status: 401 });
     }
+
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+
+    const [leads, total] = await Promise.all([
+      prisma.lead.findMany({
+        skip,
+        take: limit,
+        orderBy: {
+          date_creation: 'desc',
+        },
+        include: {
+          assignedTo: {
+            select: {
+              name: true,
+              image: true,
+            }
+          },
+          subcontractorAsSource: {
+            select: {
+              name: true
+            }
+          }
+        }
+      }),
+      prisma.lead.count()
+    ]);
+
+    return NextResponse.json({
+      data: leads,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("[LEADS_GET_ERROR]", error);
+    return new NextResponse("Erreur Interne du Serveur", { status: 500 });
+  }
 }

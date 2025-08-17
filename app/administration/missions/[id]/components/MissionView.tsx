@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react"; // <-- IMPORT AJOUTÉ
+import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mission, Order, Client, Observation, QualityCheck, Attachment, Subcontractor, Employee } from "@prisma/client";
@@ -66,7 +66,7 @@ const InfoPill = ({ icon, label, value }: { icon: React.ReactNode; label: string
 
 // --- Main Component ---
 export function MissionView({ mission, allEmployees, allSubcontractors }: MissionViewProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -87,20 +87,34 @@ export function MissionView({ mission, allEmployees, allSubcontractors }: Missio
   });
 
   const handleValidation = async () => {
-    if (!mission.order) {
-      toast.error("Cette mission n'est pas liée à une commande et ne peut pas être validée.");
-      return;
-    }
-    if (confirm("Voulez-vous approuver cette mission ? Cela générera la facture et le bon de livraison.")) {
+    const hasOrder = !!mission.order;
+    const confirmMessage = hasOrder 
+      ? "Voulez-vous approuver cette mission ? Cela générera la facture et le bon de livraison."
+      : "Voulez-vous approuver cette mission ? (Aucune facture ne sera générée car il n'y a pas de commande associée)";
+    
+    if (confirm(confirmMessage)) {
       setIsLoading(true);
-      const result = await validateMission(mission.id, mission.order.id);
-      if (result && !result.success) {
-        toast.error(result.error);
-      } else {
-        toast.success("Mission validée et documents générés !");
+      try {
+        console.log("🚀 Starting mission validation for mission:", mission.id, "order:", mission.order?.id || "none");
+        const result = await validateMission(mission.id, mission.order?.id || null);
+        
+        console.log("📋 Validation result:", result);
+        
+        if (result && !result.success) {
+          toast.error(result.error || "Erreur lors de la validation");
+        } else {
+          const successMessage = hasOrder 
+            ? "Mission validée et documents générés !"
+            : "Mission validée !";
+          toast.success(successMessage);
+          router.refresh();
+        }
+      } catch (error) {
+        console.error("❌ Error validating mission:", error);
+        toast.error("Une erreur est survenue lors de la validation");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-      router.refresh();
     }
   };
 
@@ -126,13 +140,49 @@ export function MissionView({ mission, allEmployees, allSubcontractors }: Missio
     setIsLoading(false);
   };
 
-  const isUserAdminOrManager = session?.user?.role === 'ADMIN' || session?.user?.role === 'MANAGER';
+  // Simplified role checking - Allow validation with or without order
+  const userRole = session?.user?.role;
+  const isUserAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER';
+  const shouldShowValidateButton = isUserAdminOrManager && mission.status === 'APPROBATION';
 
   const formatDateForInput = (date: Date | null | undefined): string => {
     if (!date) return '';
     const d = new Date(date);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   };
+
+  const getStatusBadge = () => {
+    switch (mission.status) {
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200';
+      case 'APPROBATION': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'VALIDATED': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'CANCELLED': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (mission.status) {
+      case 'PENDING': return 'En attente';
+      case 'IN_PROGRESS': return 'En cours';
+      case 'COMPLETED': return 'Terminée';
+      case 'APPROBATION': return 'En attente d\'approbation';
+      case 'VALIDATED': return 'Validée et facturée';
+      case 'CANCELLED': return 'Annulée';
+      default: return mission.status;
+    }
+  };
+
+  // Don't render until session is loaded
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="animate-spin text-gray-500" size={32} />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -143,18 +193,32 @@ export function MissionView({ mission, allEmployees, allSubcontractors }: Missio
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-dark-text">
               {mission.order ? `Mission #${mission.order.orderNumber}` : mission.title || "Détails de la Mission"}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-dark-subtle mt-1">
-              {mission.order ? `Client: ${mission.order.client.nom}` : "Mission interne ou spéciale"}
-            </p>
+            <div className="flex items-center gap-4 mt-2">
+              <p className="text-sm text-gray-500 dark:text-dark-subtle">
+                {mission.order ? `Client: ${mission.order.client.nom}` : "Mission interne ou spéciale"}
+              </p>
+              <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge()}`}>
+                {getStatusText()}
+              </span>
+            </div>
           </div>
+          
           <div className="flex items-center gap-2 mt-4 sm:mt-0">
-              {/* --- CORRECTION : Le bouton vérifie maintenant le rôle de l'utilisateur ET le statut 'APPROBATION' --- */}
-              {isUserAdminOrManager && mission.status === 'APPROBATION' && mission.order && (
-                  <button onClick={handleValidation} disabled={isLoading} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50">
-                      {isLoading ? <Loader2 className="animate-spin" /> : <ShieldCheck size={16} />}
-                      Approuver & Facturer
-                  </button>
-              )}
+            {/* --- VALIDATE BUTTON --- */}
+            {shouldShowValidateButton && (
+              <button 
+                onClick={handleValidation} 
+                disabled={isLoading} 
+                className="px-6 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 transition-colors shadow-lg"
+              >
+                {isLoading ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <ShieldCheck size={16} />
+                )}
+                {mission.order ? "Valider & Facturer" : "Valider Mission"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -267,7 +331,7 @@ export function MissionView({ mission, allEmployees, allSubcontractors }: Missio
             <div className="bg-gray-50 dark:bg-dark-surface rounded-lg p-4 sticky top-24">
               <h3 className="font-bold text-lg mb-4 dark:text-white">Informations Clés</h3>
               <div className="space-y-4">
-                <InfoPill icon={<Info size={14} />} label="Statut Actuel" value={mission.status} />
+                <InfoPill icon={<Info size={14} />} label="Statut Actuel" value={getStatusText()} />
                 {mission.order && (
                   <>
                     <InfoPill icon={<Users size={14} />} label="Client" value={mission.order.client.nom} />

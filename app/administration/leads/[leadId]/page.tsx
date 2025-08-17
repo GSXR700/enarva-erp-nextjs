@@ -15,7 +15,7 @@ interface LeadDetailPageProps {
 const LeadDetailPage = async ({ params }: LeadDetailPageProps) => {
   const lead = await prisma.lead.findUnique({
     where: { id: params.leadId },
-    include: { 
+    include: {
       assignedTo: {
         select: { name: true, image: true }
       }
@@ -26,7 +26,6 @@ const LeadDetailPage = async ({ params }: LeadDetailPageProps) => {
     return notFound();
   }
 
-  // Convertit les types complexes en chaînes pour éviter les erreurs de sérialisation
   const serializableLead = JSON.parse(JSON.stringify(lead));
 
   return (

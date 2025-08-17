@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getServerSession } from "next-auth";
 
+// --- UPDATE A LEAD (PATCH) ---
 export async function PATCH(
   req: Request,
   { params }: { params: { leadId: string } }
@@ -15,15 +16,17 @@ export async function PATCH(
       return new NextResponse("Accès non autorisé", { status: 403 });
     }
 
-    const body = await req.json();
-    const { 
-        nom, email, telephone, canal, type, statut, source, commentaire, quoteObject, 
-        assignedToId, subcontractorAsSourceId, date_intervention, date_cloture 
-    } = body;
-
     if (!params.leadId) {
       return new NextResponse("ID du prospect manquant", { status: 400 });
     }
+
+    const body = await req.json();
+    const {
+        nom, email, telephone, canal, type, statut, source, commentaire, quoteObject,
+        assignedToId, subcontractorAsSourceId, date_intervention, date_cloture
+    } = body;
+
+
     if (!nom) {
         return new NextResponse("Le nom du contact est obligatoire", { status: 400 });
     }
@@ -40,7 +43,6 @@ export async function PATCH(
         quoteObject,
         assignedToId: assignedToId || null,
         subcontractorAsSourceId: subcontractorAsSourceId || null,
-        // --- ADDED: Handle date fields, converting empty strings to null ---
         date_intervention: date_intervention ? new Date(date_intervention) : null,
         date_cloture: date_cloture ? new Date(date_cloture) : null,
     };
@@ -59,9 +61,7 @@ export async function PATCH(
   }
 }
 
-// ========================================================
-// SUPPRIMER UN LEAD (DELETE) - v6.0
-// ========================================================
+// --- DELETE A LEAD (DELETE) ---
 export async function DELETE(
   req: Request,
   { params }: { params: { leadId: string } }

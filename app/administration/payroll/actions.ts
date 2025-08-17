@@ -1,5 +1,8 @@
+// app/administration/payroll/actions.ts
+"use server";
+
 import prisma from "@/lib/prisma";
-import { MissionStatus, PayRateType } from "@prisma/client";
+import { Prisma, MissionStatus, PayRateType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { createAndEmitNotification } from "@/lib/notificationService";
 
@@ -21,70 +24,130 @@ async function getNextPayrollNumber() {
 }
 
 export async function punchTimesheet(employeeId: string, missionId: string) {
-    const mission = await prisma.mission.findUnique({
-        where: { id: missionId },
-        include: {
-            assignedTo: {
-                include: {
-                    defaultPayRate: true,
-                }
-            },
-            order: {
-                include: {
-                    client: true
+    try {
+        console.log(`🔍 punchTimesheet called: employee ${employeeId}, mission ${missionId}`);
+        
+        const mission = await prisma.mission.findUnique({
+            where: { id: missionId },
+            include: {
+                assignedTo: {
+                    include: {
+                        defaultPayRate: true,
+                        user: { select: { name: true } }
+                    }
+                },
+                order: {
+                    include: {
+                        client: { select: { nom: true } }
+                    }
                 }
             }
+        });
+
+        if (!mission) {
+            console.log(`❌ Mission ${missionId} not found`);
+            return { success: false, error: "Mission introuvable." };
         }
-    });
-    if (!mission) {
-        return { success: false, error: "Mission introuvable." };
-    }
 
-    const now = new Date();
+        // Verify employee is assigned to this mission
+        if (mission.assignedToId !== employeeId) {
+            console.log(`❌ Employee ${employeeId} not assigned to mission ${missionId}`);
+            return { 
+                success: false, 
+                error: "Vous n'êtes pas assigné à cette mission." 
+            };
+        }
 
-    try {
+        console.log(`📋 Mission status before: ${mission.status}`);
+        const now = new Date();
+
         if (mission.status === MissionStatus.PENDING) {
-            await prisma.$transaction([
-                prisma.mission.update({
+            // START MISSION: PENDING → IN_PROGRESS
+            await prisma.$transaction(async (tx) => {
+                await tx.mission.update({
                     where: { id: missionId },
-                    data: { status: MissionStatus.IN_PROGRESS, actualStart: now }
-                }),
-                prisma.timeLog.create({
+                    data: { 
+                        status: MissionStatus.IN_PROGRESS, 
+                        actualStart: now 
+                    }
+                });
+
+                await tx.timeLog.create({
                     data: {
                         startTime: now,
                         missionId: missionId,
                         employeeId: employeeId,
                     }
-                })
-            ]);
+                });
+            });
+
+            console.log(`✅ Mission ${missionId} started: PENDING → IN_PROGRESS`);
+
         } else if (mission.status === MissionStatus.IN_PROGRESS) {
-            const timeLog = await prisma.timeLog.findFirst({
-                where: { missionId: missionId, endTime: null },
+            // STOP MISSION: IN_PROGRESS → APPROBATION
+            
+            // First, try to find an active timeLog
+            let timeLog = await prisma.timeLog.findFirst({
+                where: { 
+                    missionId: missionId, 
+                    employeeId: employeeId,
+                    endTime: null 
+                },
                 orderBy: { startTime: 'desc' }
             });
 
+            // If no active timeLog found, check if mission was started without proper timeLog
             if (!timeLog) {
-                return { success: false, error: "Pointage de début introuvable." };
+                console.log(`⚠️ No active timeLog found for mission ${missionId}. Checking for data inconsistency...`);
+                
+                // Look for any timeLog for this mission/employee (even completed ones)
+                const anyTimeLog = await prisma.timeLog.findFirst({
+                    where: { 
+                        missionId: missionId, 
+                        employeeId: employeeId
+                    },
+                    orderBy: { startTime: 'desc' }
+                });
+
+                if (anyTimeLog) {
+                    console.log(`🔧 Found existing timeLog ${anyTimeLog.id}, but it's already closed. Creating recovery timeLog...`);
+                } else {
+                    console.log(`🔧 No timeLog found at all. Mission status inconsistent. Creating recovery timeLog...`);
+                }
+
+                // Create a recovery timeLog with start time based on actualStart or estimated time
+                const startTime = mission.actualStart || new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 hours ago as fallback
+
+                timeLog = await prisma.timeLog.create({
+                    data: {
+                        startTime: startTime,
+                        missionId: missionId,
+                        employeeId: employeeId,
+                    }
+                });
+
+                console.log(`✅ Recovery timeLog created with ID ${timeLog.id}`);
             }
 
-            const durationInMinutes = Math.round((now.getTime() - timeLog.startTime.getTime()) / (1000 * 60));
+            // Calculate duration and earnings
+            const durationInMinutes = Math.round(
+                (now.getTime() - timeLog.startTime.getTime()) / (1000 * 60)
+            );
             const durationInHours = durationInMinutes / 60;
             let earnings = 0;
-            
-            // --- CORRECTION CRITIQUE : Accès sécurisé au tarif par défaut ---
-            // L'opérateur de chaînage optionnel (?.) évite une erreur si `defaultPayRate` est null.
-            const payRate = mission.assignedTo?.defaultPayRate;
+            const payRate = mission.assignedTo.defaultPayRate;
 
             if (payRate) {
-                // FIX: Use the imported PayRateType enum directly for better type safety
                 switch (payRate.type) {
-                    case PayRateType.PER_HOUR:
+                    case "PER_HOUR":
                         earnings = payRate.amount * durationInHours;
                         break;
-                    case PayRateType.PER_DAY:
-                        earnings = (durationInHours >= 4) ? payRate.amount : (payRate.amount / 8) * durationInHours;
+                    case "PER_DAY":
+                        earnings = durationInHours >= 4 
+                            ? payRate.amount 
+                            : (payRate.amount / 8) * durationInHours;
                         break;
-                    case PayRateType.PER_MISSION:
+                    case "PER_MISSION":
                         earnings = payRate.amount;
                         break;
                     default:
@@ -92,44 +155,77 @@ export async function punchTimesheet(employeeId: string, missionId: string) {
                 }
             }
 
-            await prisma.$transaction([
-                prisma.mission.update({
+            await prisma.$transaction(async (tx) => {
+                // Update mission status to APPROBATION
+                await tx.mission.update({
                     where: { id: missionId },
-                    data: { status: MissionStatus.APPROBATION, actualEnd: now }
-                }),
-                prisma.timeLog.update({
+                    data: { 
+                        status: MissionStatus.APPROBATION, 
+                        actualEnd: now 
+                    }
+                });
+
+                // Complete the timeLog
+                await tx.timeLog.update({
                     where: { id: timeLog.id },
                     data: {
                         endTime: now,
                         duration: durationInMinutes,
                         earnings: parseFloat(earnings.toFixed(2)),
                     }
-                })
-            ]);
-
-            const adminsAndManagers = await prisma.user.findMany({
-                where: { role: { in: ['ADMIN', 'MANAGER'] } }
+                });
             });
 
-            const missionTitle = mission.order?.client?.nom || mission.title || "une mission";
+            console.log(`✅ Mission ${missionId} completed: IN_PROGRESS → APPROBATION (duration: ${durationInMinutes}min, earnings: ${earnings.toFixed(2)})`);
 
-            for (const user of adminsAndManagers) {
-                await createAndEmitNotification({
-                    userId: user.id,
-                    message: `La mission chez <b>${missionTitle}</b> est terminée et attend votre approbation.`,
-                    link: `/administration/missions/${missionId}`
+            // Notify admins and managers
+            try {
+                const adminsAndManagers = await prisma.user.findMany({
+                    where: { role: { in: ['ADMIN', 'MANAGER'] } }
                 });
+
+                const missionTitle = mission.order?.client?.nom || mission.title || "une mission";
+                const employeeName = mission.assignedTo.user?.name || `${mission.assignedTo.firstName} ${mission.assignedTo.lastName}`;
+
+                for (const user of adminsAndManagers) {
+                    await createAndEmitNotification({
+                        userId: user.id,
+                        message: `La mission chez <b>${missionTitle}</b> par <b>${employeeName}</b> est terminée et attend votre approbation.`,
+                        link: `/administration/missions/${missionId}`,
+                        type: 'TASK',
+                        priority: 'MEDIUM'
+                    });
+                }
+                console.log(`📧 Notifications sent to ${adminsAndManagers.length} managers`);
+            } catch (notificationError) {
+                console.error("Error sending notifications:", notificationError);
+                // Don't fail the whole operation if notifications fail
             }
+
         } else {
-            return { success: false, error: `Action non autorisée pour une mission avec le statut ${mission.status}.` };
+            console.log(`❌ Invalid status transition from ${mission.status}`);
+            return { 
+                success: false, 
+                error: `Action non autorisée pour une mission avec le statut ${mission.status}.` 
+            };
         }
 
+        // Revalidate relevant paths
         revalidatePath(`/administration/payroll/${employeeId}`);
         revalidatePath(`/administration/missions`);
+        revalidatePath(`/administration/missions/${missionId}`);
+        revalidatePath(`/api/missions/employee/${employeeId}`);
+        revalidatePath(`/mobile`);
+        
+        console.log(`🔄 Paths revalidated for employee ${employeeId}`);
         return { success: true };
+
     } catch (error) {
-        console.error("Erreur de pointage:", error);
-        return { success: false, error: "Une erreur est survenue lors du pointage." };
+        console.error("❌ Error in punchTimesheet:", error);
+        return { 
+            success: false, 
+            error: "Une erreur système est survenue lors du pointage." 
+        };
     }
 }
 
@@ -170,31 +266,31 @@ export async function recordPayment(formData: FormData) {
 }
 
 export async function updateTimeLogEarnings(formData: FormData) {
-  const timeLogId = formData.get('timeLogId') as string;
-  const earningsStr = formData.get('earnings') as string;
-  const employeeId = formData.get('employeeId') as string;
+    const timeLogId = formData.get('timeLogId') as string;
+    const earningsStr = formData.get('earnings') as string;
+    const employeeId = formData.get('employeeId') as string;
 
-  if (!timeLogId || !earningsStr || !employeeId) {
-    return { success: false, error: "Données manquantes." };
-  }
+    if (!timeLogId || !earningsStr || !employeeId) {
+        return { success: false, error: "Données manquantes." };
+    }
 
-  const earnings = parseFloat(earningsStr.replace(',', '.'));
-  if (isNaN(earnings) || earnings < 0) {
-    return { success: false, error: "Le montant des gains est invalide." };
-  }
+    const earnings = parseFloat(earningsStr.replace(',', '.'));
+    if (isNaN(earnings) || earnings < 0) {
+        return { success: false, error: "Le montant des gains est invalide." };
+    }
 
-  try {
-    await prisma.timeLog.update({
-      where: { id: timeLogId },
-      data: { earnings },
-    });
+    try {
+        await prisma.timeLog.update({
+            where: { id: timeLogId },
+            data: { earnings },
+        });
 
-    revalidatePath(`/administration/payroll/${employeeId}`);
-    return { success: true, message: "Gains mis à jour avec succès !" };
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour des gains:", error);
-    return { success: false, error: "Une erreur est survenue." };
-  }
+        revalidatePath(`/administration/payroll/${employeeId}`);
+        return { success: true, message: "Gains mis à jour avec succès !" };
+    } catch (error) {
+        console.error("Erreur lors de la mise à jour des gains:", error);
+        return { success: false, error: "Une erreur est survenue." };
+    }
 }
 
 export async function generatePayroll(employeeId: string, periodStart: Date, periodEnd: Date) {
@@ -266,55 +362,55 @@ export async function generatePayroll(employeeId: string, periodStart: Date, per
 }
 
 export async function recordPayAdvance(formData: FormData) {
-  const employeeId = formData.get('employeeId') as string;
-  const amountStr = formData.get('amount') as string;
-  const reason = formData.get('reason') as string;
+    const employeeId = formData.get('employeeId') as string;
+    const amountStr = formData.get('amount') as string;
+    const reason = formData.get('reason') as string;
 
-  if (!employeeId || !amountStr) {
-    return { success: false, error: "L'employé et le montant sont requis." };
-  }
+    if (!employeeId || !amountStr) {
+        return { success: false, error: "L'employé et le montant sont requis." };
+    }
 
-  const amount = parseFloat(amountStr.replace(',', '.'));
-  if (isNaN(amount) || amount <= 0) {
-    return { success: false, error: "Le montant est invalide." };
-  }
+    const amount = parseFloat(amountStr.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) {
+        return { success: false, error: "Le montant est invalide." };
+    }
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      const document = await tx.generatedDocument.create({ // Correct model name
-        data: {
-          type: 'BCa',
-          numero: `BCa-${Date.now()}`,
-          pdfUrl: '',
-        }
-      });
+    try {
+        await prisma.$transaction(async (tx) => {
+            const document = await tx.generatedDocument.create({
+                data: {
+                    type: 'BCa',
+                    numero: `BCa-${Date.now()}`,
+                    pdfUrl: '',
+                }
+            });
 
-      await tx.payAdvance.create({
-        data: {
-          employeeId,
-          amount,
-          date: new Date(),
-          reason: reason || "Avance sur salaire",
-          documentId: document.id,
-        }
-      });
+            await tx.payAdvance.create({
+                data: {
+                    employeeId,
+                    amount,
+                    date: new Date(),
+                    reason: reason || "Avance sur salaire",
+                    documentId: document.id,
+                }
+            });
 
-      await tx.payment.create({
-        data: {
-          employeeId,
-          amount,
-          type: 'Avance',
-          date: new Date(),
-          notes: reason || "Avance sur salaire",
-        }
-      });
-    });
+            await tx.payment.create({
+                data: {
+                    employeeId,
+                    amount,
+                    type: 'Avance',
+                    date: new Date(),
+                    notes: reason || "Avance sur salaire",
+                }
+            });
+        });
 
-    revalidatePath(`/administration/payroll/${employeeId}`);
-    return { success: true, message: "Avance enregistrée avec succès !" };
+        revalidatePath(`/administration/payroll/${employeeId}`);
+        return { success: true, message: "Avance enregistrée avec succès !" };
 
-  } catch (error) {
-    console.error("Erreur lors de l'enregistrement de l'avance:", error);
-    return { success: false, error: "Une erreur serveur est survenue." };
-  }
+    } catch (error) {
+        console.error("Erreur lors de l'enregistrement de l'avance:", error);
+        return { success: false, error: "Une erreur serveur est survenue." };
+    }
 }

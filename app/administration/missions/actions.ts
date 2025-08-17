@@ -163,17 +163,44 @@ export async function deleteAttachment(id: string) {
     }
 }
 
-export async function validateMission(missionId: string, orderId: string) {
+export async function validateMission(missionId: string, orderId: string | null) {
     const session = await getServerSession(authOptions);
-    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { client: true } });
+    
+    // If no orderId, just validate the mission without generating invoice/delivery note
+    if (!orderId) {
+        try {
+            await prisma.mission.update({ 
+                where: { id: missionId }, 
+                data: { status: 'VALIDATED' } 
+            });
+            
+            revalidatePath(`/administration/missions/${missionId}`);
+            return { success: true };
+        } catch (error) {
+            console.error("Erreur validateMission (no order):", error);
+            return { success: false, error: "Erreur lors de la validation de la mission." };
+        }
+    }
+
+    // If orderId exists, proceed with invoice/delivery note generation
+    const order = await prisma.order.findUnique({ 
+        where: { id: orderId }, 
+        include: { client: true } 
+    });
 
     if (!order) {
         return { success: false, error: "Commande associée introuvable." };
     }
 
-    const existingInvoice = await prisma.invoice.findFirst({ where: { orderId: order.id } });
+    const existingInvoice = await prisma.invoice.findFirst({ 
+        where: { orderId: order.id } 
+    });
+    
     if (existingInvoice) {
-        await prisma.mission.update({ where: { id: missionId }, data: { status: 'VALIDATED' } });
+        await prisma.mission.update({ 
+            where: { id: missionId }, 
+            data: { status: 'VALIDATED' } 
+        });
         revalidatePath(`/administration/missions/${missionId}`);
         return { success: true };
     }
@@ -189,21 +216,41 @@ export async function validateMission(missionId: string, orderId: string) {
         await prisma.$transaction(async (tx) => {
             await tx.invoice.create({
                 data: {
-                    invoiceNumber, date: now, dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-                    status: 'DRAFT', orderId: order.id, clientId: order.clientId, items: itemsAsJsonArray,
-                    totalHT, tva, totalTTC,
+                    invoiceNumber, 
+                    date: now, 
+                    dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+                    status: 'DRAFT', 
+                    orderId: order.id, 
+                    clientId: order.clientId, 
+                    items: itemsAsJsonArray,
+                    totalHT, 
+                    tva, 
+                    totalTTC,
                 }
             });
+            
             await tx.deliveryNote.create({
                 data: {
-                    deliveryNoteNumber, date: now, orderId: order.id,
+                    deliveryNoteNumber, 
+                    date: now, 
+                    orderId: order.id,
                     items: (itemsAsJsonArray as any[]).map(item => ({
-                        designation: item.designation, qteCommandee: item.quantity, qteLivree: item.quantity,
+                        designation: item.designation, 
+                        qteCommandee: item.quantity, 
+                        qteLivree: item.quantity,
                     })) as Prisma.JsonArray,
                 }
             });
-            await tx.mission.update({ where: { id: missionId }, data: { status: 'VALIDATED' } });
-            await tx.order.update({ where: { id: orderId }, data: { status: 'DELIVERED' } });
+            
+            await tx.mission.update({ 
+                where: { id: missionId }, 
+                data: { status: 'VALIDATED' } 
+            });
+            
+            await tx.order.update({ 
+                where: { id: orderId }, 
+                data: { status: 'DELIVERED' } 
+            });
         });
 
         if (session?.user?.id) {
@@ -214,16 +261,17 @@ export async function validateMission(missionId: string, orderId: string) {
             });
         }
 
+        revalidatePath(`/administration/missions/${missionId}`);
+        revalidatePath('/administration/invoices');
+        revalidatePath('/administration/delivery-notes');
+        
+        // Only redirect to invoices if we generated documents
+        redirect(`/administration/invoices`);
+
     } catch (error) {
         console.error("Erreur validateMission:", error);
         return { success: false, error: "Erreur lors de la génération des documents." };
     }
-
-    // --- FIX: Move revalidate and redirect outside the try...catch block ---
-    revalidatePath(`/administration/missions/${missionId}`);
-    revalidatePath('/administration/invoices');
-    revalidatePath('/administration/delivery-notes');
-    redirect(`/administration/invoices`);
 }
 
 // --- Attachment Actions ---

@@ -34,7 +34,7 @@ export function MissionList({ missions, onEdit }: MissionListProps) {
       case 'IN_PROGRESS': return <span className={`${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300`}>En cours</span>;
       case 'APPROBATION': return <span className={`${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300`}>En Approbation</span>;
       case 'COMPLETED': return <span className={`${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`}>Approuvée</span>;
-      case 'VALIDATED': return <span className={`${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300`}>Validée & Facturée</span>;
+      case 'VALIDATED': return <span className={`${baseClasses} bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300`}>Facturée</span>;
       case 'CANCELLED': return <span className={`${baseClasses} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300`}>Annulée</span>;
       default: return <span className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</span>;
     }

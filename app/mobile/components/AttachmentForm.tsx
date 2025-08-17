@@ -1,9 +1,11 @@
+// app/mobile/components/AttachmentForm.tsx
 "use client";
 
 import { useRef, useState, useEffect } from "react";
 import type { Mission, Order, Client } from "@prisma/client";
 import { Loader2, RefreshCw, Send, Check } from "lucide-react";
 import { useEdgeStore } from "@/lib/edgestore";
+// --- FIX: Updated the import path to the new centralized actions file ---
 import { saveAttachment } from "@/app/administration/missions/actions";
 
 type SignaturePadProps = { title: string; onSave: (dataUrl: string) => void; };
@@ -49,7 +51,16 @@ const SignaturePad = ({ title, onSave }: SignaturePadProps) => {
         canvas.addEventListener('touchend', stopDrawing, { passive: false });
         canvas.addEventListener('touchmove', draw, { passive: false });
 
-        return () => { /* Nettoyage des écouteurs */ };
+        return () => {
+            // Cleanup event listeners
+            canvas.removeEventListener('mousedown', startDrawing);
+            canvas.removeEventListener('mouseup', stopDrawing);
+            canvas.removeEventListener('mouseleave', stopDrawing);
+            canvas.removeEventListener('mousemove', draw);
+            canvas.removeEventListener('touchstart', startDrawing);
+            canvas.removeEventListener('touchend', stopDrawing);
+            canvas.removeEventListener('touchmove', draw);
+        };
     }, []);
 
     const clearCanvas = () => {

@@ -1,160 +1,100 @@
 // app/administration/page.tsx
-
 import { Suspense } from 'react';
-import { Euro, FileText, Briefcase, CheckSquare, Users } from 'lucide-react';
-import MetricCard from '@/components/ui/MetricCard';
-import { RevenueChart } from './components/charts/RevenueChart';
-import { MissionStatusChart } from './components/charts/MissionStatusChart';
-import { ActivityFeed } from './components/dashboard/ActivityFeed'; // <-- NOUVEL IMPORT
+import { FileText, Briefcase, Users, Euro, Wallet } from 'lucide-react';
+import { WelcomeBanner } from './components/dashboard/WelcomeBanner';
+import { MetricCard } from './components/dashboard/MetricCard';
+import { ActivityFeed } from './components/dashboard/ActivityFeed';
+import { RecentDocumentsList } from './components/dashboard/RecentDocumentsList';
 
-interface DashboardMetrics {
-    commercial: {
-        monthlyRevenue: number;
-        unpaidInvoicesAmount: number;
-    };
-    operational: {
-        ongoingMissions: number;
-        completedToday: number;
-        totalEmployees: number;
-    };
+// Types pour les données récupérées
+interface DashboardData {
+    commercial: { monthlyRevenue: number; unpaidInvoicesAmount: number; };
+    operational: { ongoingMissions: number; totalEmployees: number; };
+    recentQuotes: any[];
+    recentInvoices: any[];
+    monthlyExpenses: number;
 }
 
-interface ChartData {
-    revenueChartData: any;
-    missionStatusChartData: any;
+// Fonction pour récupérer toutes les données du tableau de bord
+async function getDashboardData(): Promise<DashboardData> {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    try {
+        const res = await fetch(`${baseUrl}/api/dashboard/metrics`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to fetch metrics');
+        return res.json();
+    } catch (error) {
+        console.error("Dashboard data fetching error:", error);
+        return {
+            commercial: { monthlyRevenue: 0, unpaidInvoicesAmount: 0 },
+            operational: { ongoingMissions: 0, totalEmployees: 0 },
+            recentQuotes: [],
+            recentInvoices: [],
+            monthlyExpenses: 0,
+        };
+    }
 }
 
-// --- SKELETON COMPONENTS ---
-function MetricCardSkeleton() {
+const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
+
+// Composant principal du contenu du tableau de bord
+async function DashboardContent() {
+    const data = await getDashboardData();
+    
     return (
-        <div className="bg-white dark:bg-dark-container rounded-lg shadow-md p-5 h-40 flex flex-col justify-between animate-pulse">
-            <div className="flex justify-end">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-surface"></div>
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            {/* Colonne principale (plus large) */}
+            <div className="xl:col-span-3 space-y-6">
+                <WelcomeBanner />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <MetricCard title="Revenu Mensuel" value={formatCurrency(data.commercial.monthlyRevenue)} icon={<Euro size={20} />} color="green" />
+                    <MetricCard title="Factures Impayées" value={formatCurrency(data.commercial.unpaidInvoicesAmount)} icon={<FileText size={20} />} color="yellow" />
+                    <MetricCard title="Dépenses du Mois" value={formatCurrency(data.monthlyExpenses)} icon={<Wallet size={20} />} color="purple" />
+                    <MetricCard title="Missions en Cours" value={data.operational.ongoingMissions} icon={<Briefcase size={20} />} color="blue" />
+                </div>
+
+                {/* --- NOUVELLE SECTION POUR LES DOCUMENTS RÉCENTS --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <RecentDocumentsList 
+                        title="Devis Récents"
+                        items={data.recentQuotes.map(q => ({ id: q.id, number: q.quoteNumber, clientName: q.client.nom, amount: q.totalTTC, status: q.status }))}
+                        viewAllLink="/administration/quotes"
+                        type="quote"
+                    />
+                    <RecentDocumentsList 
+                        title="Factures Récentes"
+                        items={data.recentInvoices.map(i => ({ id: i.id, number: i.invoiceNumber, clientName: i.client.nom, amount: i.totalTTC, status: i.status }))}
+                        viewAllLink="/administration/invoices"
+                        type="invoice"
+                    />
+                </div>
             </div>
-            <div className="flex flex-col items-center">
-                <div className="h-8 w-32 bg-gray-200 rounded-md dark:bg-dark-surface mb-2"></div>
-                <div className="h-4 w-24 bg-gray-200 rounded-md dark:bg-dark-surface"></div>
+
+            {/* Colonne latérale (plus étroite) */}
+            <div className="xl:col-span-1">
+                <ActivityFeed />
             </div>
         </div>
     );
 }
 
-function ChartSkeleton() {
-    return (
-        <div className="bg-white dark:bg-dark-container rounded-lg shadow-md p-6 h-[350px] animate-pulse"></div>
-    );
-}
-
-// --- UTILITIES ---
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('fr-FR', {
-        style: 'currency',
-        currency: 'EUR'
-    }).format(amount);
-}
-
-// --- DATA FETCHING ---
-async function getDashboardData() {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-    const [metricsRes, chartDataRes] = await Promise.all([
-        fetch(`${baseUrl}/api/dashboard/metrics`, { cache: 'no-store' }),
-        fetch(`${baseUrl}/api/dashboard/charts`, { cache: 'no-store' })
-    ]);
-
-    if (!metricsRes.ok) {
-        console.error("Failed to fetch metrics:", metricsRes.status, metricsRes.statusText);
-        throw new Error('Failed to fetch metrics');
-    }
-
-    const metrics: DashboardMetrics = await metricsRes.json();
-
-    let chartData: ChartData | null = null;
-    if (chartDataRes.ok) {
-        chartData = await chartDataRes.json();
-    } else {
-        console.warn("Failed to fetch chart data:", chartDataRes.status, chartDataRes.statusText);
-    }
-
-    return { metrics, chartData };
-}
-
-// --- DATA DISPLAY COMPONENT ---
-async function DashboardContent() {
-    const { metrics, chartData } = await getDashboardData();
-
+// Page principale
+export default function DashboardPage() {
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <MetricCard
-                    title="Chiffre d'affaires mensuel"
-                    value={formatCurrency(metrics.commercial.monthlyRevenue)}
-                    icon={<Euro className="w-6 h-6" />}
-                    description="Total des revenus ce mois-ci"
-                />
-                <MetricCard
-                    title="Factures impayées"
-                    value={formatCurrency(metrics.commercial.unpaidInvoicesAmount)}
-                    icon={<FileText className="w-6 h-6" />}
-                    description="Montant total des factures impayées"
-                />
-                <MetricCard
-                    title="Missions en cours"
-                    value={metrics.operational.ongoingMissions}
-                    icon={<Briefcase className="w-6 h-6" />}
-                    description="Nombre de missions actives"
-                />
-                <MetricCard
-                    title="Missions terminées"
-                    value={metrics.operational.completedToday}
-                    icon={<CheckSquare className="w-6 h-6" />}
-                    description="Missions terminées aujourd'hui"
-                />
-                <MetricCard
-                    title="Employés actifs"
-                    value={metrics.operational.totalEmployees}
-                    icon={<Users className="w-6 h-6" />}
-                    description="Nombre total d'employés"
-                />
-            </div>
-
-            {/* MISE À JOUR : Ajout de la grille pour les graphiques ET l'activité récente */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2 space-y-6">
-                    {chartData ? (
-                        <RevenueChart data={chartData.revenueChartData} />
-                    ) : (
-                        <ChartSkeleton />
-                    )}
-                </div>
-                <div className="lg:col-span-1">
-                     <Suspense fallback={<ChartSkeleton />}>
-                        <ActivityFeed />
-                     </Suspense>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// --- MAIN PAGE COMPONENT ---
-export default async function DashboardPage() {
-    return (
-        <div className="p-6 space-y-6">
-            <h1 className="text-3xl font-semibold">Tableau de bord</h1>
-            <Suspense fallback={
-                <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                        {[...Array(5)].map((_, i) => <MetricCardSkeleton key={i} />)}
+             <Suspense fallback={
+                 <div className="animate-pulse space-y-6">
+                    <div className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>)}
                     </div>
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                        <div className="lg:col-span-2"><ChartSkeleton /></div>
-                        <div className="lg:col-span-1"><ChartSkeleton /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
+                         <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
                     </div>
-                </div>
-            }>
+                 </div>
+             }>
                 <DashboardContent />
-            </Suspense>
+             </Suspense>
         </div>
     );
 }

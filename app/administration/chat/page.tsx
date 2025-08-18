@@ -1,7 +1,7 @@
 // app/administration/chat/page.tsx
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { ChatLayout } from "./components/ChatLayout";
 import { notFound } from "next/navigation";
 

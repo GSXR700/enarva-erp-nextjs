@@ -8,7 +8,7 @@ import { z } from "zod";
 import { MissionStatus, Prisma } from "@prisma/client";
 import { createAndEmitNotification } from "@/lib/notificationService";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 type ActionResponse = {
   success: boolean;

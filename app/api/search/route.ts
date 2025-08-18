@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const [clients, quotes, invoices, orders, deliveryNotes] = await Promise.all([
       // Recherche des clients par nom
       prisma.client.findMany({
-        where: { name: { contains: query, mode: 'insensitive' } },
+        where: { nom: { contains: query, mode: 'insensitive' } },
         take: 5,
       }),
       // Recherche des devis par numéro
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
 
     // Formater les résultats pour l'affichage
     const results = {
-      clients: clients.map(c => ({ id: c.id, title: c.name, type: 'Client' })),
+      clients: clients.map(c => ({ id: c.id, title: c.nom, type: 'Client' })),
       quotes: quotes.map(q => ({ id: q.id, title: q.quoteNumber, type: 'Devis' })),
       invoices: invoices.map(i => ({ id: i.id, title: i.invoiceNumber, type: 'Facture' })),
       orders: orders.map(o => ({ id: o.id, title: o.orderNumber, type: 'Commande' })),

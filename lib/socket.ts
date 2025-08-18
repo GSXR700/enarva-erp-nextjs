@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/lib/socket.ts
+// lib/socket.ts
 import { Server as IOServer, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import prisma from './prisma';
@@ -21,7 +21,8 @@ interface NotificationPayload {
 interface ServerToClientEvents {
   'user-status-changed': (data: { userId: string; isOnline: boolean }) => void;
   'new-notification': (notification: NotificationPayload) => void;
-   "location-update": (data: {
+  'new-message': (message: any) => void;
+  "location-update": (data: {
     id: string;
     name: string | null;
     image: string | null;
@@ -54,6 +55,7 @@ declare global {
 
 const onlineUsers = new Map<string, string>(); // Map<userId, socketId>
 
+// 🔧 AMÉLIORATION: Type de retour plus explicite avec documentation
 export function getIO(): CustomServer | undefined {
   return global.io;
 }
@@ -66,86 +68,76 @@ export function initSocket(httpServer: HttpServer): CustomServer {
 
   const io = new IOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: { 
-      origin: process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL : "*",
+      origin: process.env.NODE_ENV === 'production' 
+        ? [process.env.NEXTAUTH_URL!, process.env.NEXT_PUBLIC_APP_URL!].filter(Boolean)
+        : ["http://localhost:3000", "http://127.0.0.1:3000"],
       methods: ["GET", "POST"],
       credentials: true
     },
+    transports: ['websocket', 'polling'],
     pingTimeout: 60000,
-    connectTimeout: 60000,
+    pingInterval: 25000,
   });
 
-  global.io = io;
-
+  // Connection handler
   io.on('connection', (socket: CustomSocket) => {
-    console.log(`🔌 Client connected: ${socket.id}`);
-      
-    // Handle disconnection
-    socket.on('disconnect', async () => {
-      console.log(`🔌 Client disconnected: ${socket.id}`);
-      
-      // Find and remove user from online users
-      for (const [userId, socketId] of onlineUsers.entries()) {
-        if (socketId === socket.id) {
-          try {
-            onlineUsers.delete(userId);
-            
-            // Update user status
-            await prisma.user.updateMany({
-              where: {
-                id: userId,
-                isOnline: true
-              },
-              data: {
-                isOnline: false,
-                lastSeen: new Date()
-              }
-            });
+    console.log(`🔌 Socket connecté: ${socket.id}`);
 
-            // Notify other clients
-            socket.broadcast.emit('user-status-changed', {
-              userId: userId,
-              isOnline: false
-            });
-            break;
-          } catch (err) {
-            console.error('Error updating user status:', err);
-          }
-        }
+    // Gestion des rooms utilisateur
+    socket.on('join-room', async (userId: string) => {
+      try {
+        if (!userId) return;
+        
+        socket.data.userId = userId;
+        await socket.join(userId);
+        
+        // Mettre à jour le statut en ligne
+        onlineUsers.set(userId, socket.id);
+        
+        await prisma.user.update({
+          where: { id: userId },
+          data: { isOnline: true, lastSeen: new Date() }
+        });
+
+        // Émettre le changement de statut
+        socket.broadcast.emit('user-status-changed', { 
+          userId, 
+          isOnline: true 
+        });
+
+        console.log(`🔌 Utilisateur ${userId} connecté avec socket ${socket.id}`);
+      } catch (error) {
+        console.error('Erreur lors de la connexion:', error);
       }
     });
 
-      socket.on('join-room', async (userId: string) => {
-        try {
-          const user = await prisma.user.findUnique({
-            where: { id: userId }
-          });
+    // Gestion de la déconnexion
+    socket.on('disconnect', async () => {
+      try {
+        const userId = socket.data.userId;
+        if (userId) {
+          onlineUsers.delete(userId);
           
-          if (user) {
-            socket.join(userId);
-            onlineUsers.set(userId, socket.id);
-            
-            await prisma.user.update({ 
-              where: { id: userId }, 
-              data: { 
-                isOnline: true,
-                lastSeen: new Date(),
-                lastKnownIp: socket.handshake.address,
-                lastUserAgent: socket.handshake.headers['user-agent'] as string || null
-              } 
-            });
+          await prisma.user.update({
+            where: { id: userId },
+            data: { isOnline: false, lastSeen: new Date() }
+          });
 
-            socket.broadcast.emit('user-status-changed', {
-              userId: userId,
-              isOnline: true
-            });
-          } else {
-            console.log(`Socket join-room: User ${userId} not found`);
-          }
-        } catch (err) {
-          console.error('Error updating user status:', err);
+          socket.broadcast.emit('user-status-changed', { 
+            userId, 
+            isOnline: false 
+          });
+
+          console.log(`🔌 Utilisateur ${userId} déconnecté`);
         }
-      });
+      } catch (error) {
+        console.error('Erreur lors de la déconnexion:', error);
+      }
     });
+  });
 
-    return io;
+  global.io = io;
+  console.log("✅ Socket.IO server initialized successfully");
+  
+  return io;
 }

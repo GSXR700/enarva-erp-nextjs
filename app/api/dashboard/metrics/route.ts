@@ -17,7 +17,6 @@ export async function GET() {
       totalEmployees,
       paidInvoicesThisMonth,
       missionsCompletedToday,
-      // --- NOUVELLES DONNÉES RÉCUPÉRÉES ---
       recentQuotes,
       recentInvoices,
       monthlyExpenses
@@ -51,9 +50,10 @@ export async function GET() {
       prisma.expense.aggregate({
         _sum: { amount: true },
         where: { date: { gte: startOfMonth } }
-      })
+      }).catch(() => ({ _sum: { amount: 0 } })) // 🔧 Gestion d'erreur si table expense n'existe pas
     ]);
 
+    // 🔧 CORRECTION PRINCIPALE: Sérialisation des dates pour Vercel
     const metrics = {
       commercial: {
         monthlyRevenue: paidInvoicesThisMonth._sum.totalTTC || 0,
@@ -64,15 +64,43 @@ export async function GET() {
         completedToday: missionsCompletedToday,
         totalEmployees: totalEmployees,
       },
-      // --- NOUVELLES DONNÉES AJOUTÉES À LA RÉPONSE ---
-      recentQuotes,
-      recentInvoices,
-      monthlyExpenses: monthlyExpenses._sum.amount || 0
+      // 🔧 CORRECTION: Convertir les dates en strings pour éviter les erreurs de sérialisation
+      recentQuotes: recentQuotes.map(quote => ({
+        ...quote,
+        date: quote.date.toISOString(), // Date → string ISO
+        createdAt: quote.createdAt.toISOString(),
+        updatedAt: quote.updatedAt.toISOString()
+      })),
+      recentInvoices: recentInvoices.map(invoice => ({
+        ...invoice,
+        date: invoice.date.toISOString(), // Date → string ISO
+        dueDate: invoice.dueDate.toISOString(),
+        createdAt: invoice.createdAt.toISOString(),
+        updatedAt: invoice.updatedAt.toISOString()
+      })),
+      monthlyExpenses: monthlyExpenses._sum?.amount || 0
     };
 
     return NextResponse.json(metrics);
   } catch (error) {
-    console.error("Erreur lors de la récupération des métriques:", error);
-    return new NextResponse('Erreur Interne du Serveur', { status: 500 });
+    console.error("Erreur lors de la récupération des métriques dashboard:", error);
+    
+    // 🔧 AMÉLIORATION: Retourner des données par défaut au lieu d'une erreur 500
+    const fallbackMetrics = {
+      commercial: {
+        monthlyRevenue: 0,
+        unpaidInvoicesAmount: 0,
+      },
+      operational: {
+        ongoingMissions: 0,
+        completedToday: 0,
+        totalEmployees: 0,
+      },
+      recentQuotes: [],
+      recentInvoices: [],
+      monthlyExpenses: 0
+    };
+
+    return NextResponse.json(fallbackMetrics);
   }
 }

@@ -15,15 +15,37 @@ interface DashboardData {
     monthlyExpenses: number;
 }
 
-// Fonction pour récupérer toutes les données du tableau de bord
+// 🔧 CORRECTION: Fonction pour récupérer les données via API avec fallback
 async function getDashboardData(): Promise<DashboardData> {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     try {
-        const res = await fetch(`${baseUrl}/api/dashboard/metrics`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch metrics');
-        return res.json();
+        // 🔧 CORRECTION: URL absolue pour Vercel
+        const baseUrl = process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : process.env.NEXTAUTH_URL || 'http://localhost:3000';
+            
+        console.log("🔍 Fetching dashboard data from:", `${baseUrl}/api/dashboard/metrics`);
+        
+        const res = await fetch(`${baseUrl}/api/dashboard/metrics`, { 
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log("✅ Dashboard data loaded successfully:", {
+            quotesCount: data.recentQuotes?.length || 0,
+            invoicesCount: data.recentInvoices?.length || 0
+        });
+        
+        return data;
     } catch (error) {
-        console.error("Dashboard data fetching error:", error);
+        console.error("❌ Dashboard data fetching error:", error);
+        // 🔧 AMÉLIORATION: Retourner des données par défaut
         return {
             commercial: { monthlyRevenue: 0, unpaidInvoicesAmount: 0 },
             operational: { ongoingMissions: 0, totalEmployees: 0 },
@@ -34,7 +56,10 @@ async function getDashboardData(): Promise<DashboardData> {
     }
 }
 
-const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
+const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { 
+    style: 'currency', 
+    currency: 'MAD' 
+}).format(amount);
 
 // Composant principal du contenu du tableau de bord
 async function DashboardContent() {
@@ -46,23 +71,55 @@ async function DashboardContent() {
             <div className="xl:col-span-3 space-y-6">
                 <WelcomeBanner />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <MetricCard title="Revenu Mensuel" value={formatCurrency(data.commercial.monthlyRevenue)} icon={<Euro size={20} />} color="green" />
-                    <MetricCard title="Factures Impayées" value={formatCurrency(data.commercial.unpaidInvoicesAmount)} icon={<FileText size={20} />} color="yellow" />
-                    <MetricCard title="Dépenses du Mois" value={formatCurrency(data.monthlyExpenses)} icon={<Wallet size={20} />} color="purple" />
-                    <MetricCard title="Missions en Cours" value={data.operational.ongoingMissions} icon={<Briefcase size={20} />} color="blue" />
+                    <MetricCard 
+                        title="Revenu Mensuel" 
+                        value={formatCurrency(data.commercial.monthlyRevenue)} 
+                        icon={<Euro size={20} />} 
+                        color="green" 
+                    />
+                    <MetricCard 
+                        title="Factures Impayées" 
+                        value={formatCurrency(data.commercial.unpaidInvoicesAmount)} 
+                        icon={<FileText size={20} />} 
+                        color="yellow" 
+                    />
+                    <MetricCard 
+                        title="Dépenses du Mois" 
+                        value={formatCurrency(data.monthlyExpenses)} 
+                        icon={<Wallet size={20} />} 
+                        color="purple" 
+                    />
+                    <MetricCard 
+                        title="Missions en Cours" 
+                        value={data.operational.ongoingMissions} 
+                        icon={<Briefcase size={20} />} 
+                        color="blue" 
+                    />
                 </div>
 
-                {/* --- NOUVELLE SECTION POUR LES DOCUMENTS RÉCENTS --- */}
+                {/* 📋 SECTION DOCUMENTS RÉCENTS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <RecentDocumentsList 
                         title="Devis Récents"
-                        items={data.recentQuotes.map(q => ({ id: q.id, number: q.quoteNumber, clientName: q.client.nom, amount: q.totalTTC, status: q.status }))}
+                        items={data.recentQuotes.map(q => ({ 
+                            id: q.id, 
+                            number: q.quoteNumber, 
+                            clientName: q.client?.nom || 'Client inconnu',
+                            amount: q.totalTTC, 
+                            status: q.status 
+                        }))}
                         viewAllLink="/administration/quotes"
                         type="quote"
                     />
                     <RecentDocumentsList 
                         title="Factures Récentes"
-                        items={data.recentInvoices.map(i => ({ id: i.id, number: i.invoiceNumber, clientName: i.client.nom, amount: i.totalTTC, status: i.status }))}
+                        items={data.recentInvoices.map(i => ({ 
+                            id: i.id, 
+                            number: i.invoiceNumber, 
+                            clientName: i.client?.nom || 'Client inconnu',
+                            amount: i.totalTTC, 
+                            status: i.status 
+                        }))}
                         viewAllLink="/administration/invoices"
                         type="invoice"
                     />
@@ -85,7 +142,9 @@ export default function DashboardPage() {
                  <div className="animate-pulse space-y-6">
                     <div className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>)}
+                        {[...Array(4)].map((_, i) => (
+                            <div key={i} className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
+                        ))}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                          <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>

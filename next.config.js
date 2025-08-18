@@ -3,9 +3,18 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['socket.io', 'socket.io-client']
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'files.edgestore.dev',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Fallbacks pour les modules Node.js côté client
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -21,7 +30,6 @@ const nextConfig = {
         util: false,
       };
       
-      // Exclure Socket.IO du bundle client
       config.externals.push({
         'socket.io': 'commonjs socket.io',
       });

@@ -20,7 +20,7 @@ export async function GET() {
           include: {
             client: {
               select: {
-                name: true
+                nom: true
               }
             }
           }
@@ -31,7 +31,7 @@ export async function GET() {
     // Formate les données pour le composant calendrier
     const scheduleEvents = missions.map(mission => ({
       id: mission.id,
-      title: `Mission chez ${mission.order.client.name}`,
+      title: `Mission chez ${mission.order?.client?.nom ?? 'Client inconnu'}`,
       start: mission.scheduledStart,
       end: mission.scheduledEnd,
       employeeId: mission.assignedToId,

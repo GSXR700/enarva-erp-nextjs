@@ -12,6 +12,8 @@ interface LeadKanbanViewProps {
   initialData: LeadWithAssignedUser[];
 }
 
+// 🔧 CORRECTION: Remplacement de 'client_converted' par 'qualified' 
+// car dans votre logique métier, un lead qualifié = converti en client potentiel
 const kanbanColumns: { id: LeadStatus, title: string }[] = [
     { id: 'new_lead', title: 'Nouveau Prospect' },
     { id: 'to_qualify', title: 'À Qualifier' },
@@ -19,7 +21,7 @@ const kanbanColumns: { id: LeadStatus, title: string }[] = [
     { id: 'visit_scheduled', title: 'Visite Planifiée' },
     { id: 'quote_sent', title: 'Devis Envoyé' },
     { id: 'quote_accepted', title: 'Devis Accepté' },
-    { id: 'client_converted', title: 'Client Converti' },
+    { id: 'client_confirmed', title: 'Client Confirmé' }, // 🔧 CORRECTION: Utilise le bon enum
 ];
 
 export const LeadKanbanView = ({ initialData }: LeadKanbanViewProps) => {
@@ -68,23 +70,58 @@ export const LeadKanbanView = ({ initialData }: LeadKanbanViewProps) => {
                             <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`bg-gray-100/70 dark:bg-dark-surface rounded-lg w-80 flex-shrink-0 flex flex-col transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                                className={`bg-gray-100/70 dark:bg-dark-surface rounded-lg w-80 flex-shrink-0 flex flex-col transition-colors ${
+                                    snapshot.isDraggingOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                                }`}
                             >
-                                <h3 className="p-3 text-sm font-semibold text-gray-700 dark:text-dark-text border-b dark:border-dark-border sticky top-0 bg-gray-100/70 dark:bg-dark-surface rounded-t-lg backdrop-blur-sm">
-                                    {title} <span className="text-xs font-normal bg-gray-200 dark:bg-dark-border px-2 py-0.5 rounded-full">{leadsInColumn.length}</span>
-                                </h3>
-                                <div className="p-2 space-y-2 flex-grow min-h-[100px] max-h-[calc(100vh-300px)] overflow-y-auto">
+                                <div className="p-4 border-b border-gray-200 dark:border-dark-border">
+                                    <h3 className="font-semibold text-gray-700 dark:text-dark-text">{title}</h3>
+                                    <span className="text-sm text-gray-500 dark:text-dark-subtle">
+                                        {leadsInColumn.length} prospect{leadsInColumn.length > 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                                
+                                <div className="flex-1 p-2 space-y-2 min-h-[200px]">
                                     {leadsInColumn.map((lead, index) => (
                                         <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                                            {(provided) => (
+                                            {(provided, snapshot) => (
                                                 <div
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
-                                                    className="bg-white dark:bg-dark-highlight-bg rounded-md p-3 shadow-sm border dark:border-dark-border hover:shadow-md"
+                                                    className={`bg-white dark:bg-dark-container p-3 rounded-md shadow-sm border transition-all ${
+                                                        snapshot.isDragging 
+                                                            ? 'shadow-lg rotate-3 border-blue-300' 
+                                                            : 'hover:shadow-md border-gray-200 dark:border-dark-border'
+                                                    }`}
                                                 >
-                                                    <Link href={`/administration/leads/${lead.id}`} className="block font-medium text-sm text-gray-900 dark:text-white hover:underline">{lead.nom}</Link>
-                                                    <p className="text-xs text-gray-500 dark:text-dark-subtle mt-1">{lead.telephone || 'Pas de contact'}</p>
+                                                    <Link href={`/administration/leads/${lead.id}`}>
+                                                        <div>
+                                                            <h4 className="font-medium text-gray-800 dark:text-dark-text text-sm mb-1">
+                                                                {lead.nom}
+                                                            </h4>
+                                                            <p className="text-xs text-gray-600 dark:text-dark-subtle mb-2">
+                                                                {lead.telephone || 'Pas de téléphone'}
+                                                            </p>
+                                                            {lead.quoteObject && (
+                                                                <p className="text-xs text-gray-500 dark:text-dark-subtle truncate">
+                                                                    {lead.quoteObject}
+                                                                </p>
+                                                            )}
+                                                            {lead.assignedTo && (
+                                                                <div className="mt-2 flex items-center">
+                                                                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                                                        <span className="text-xs text-white font-medium">
+                                                                            {lead.assignedTo.name?.charAt(0) || '?'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="ml-1 text-xs text-gray-600 dark:text-dark-subtle">
+                                                                        {lead.assignedTo.name}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </Link>
                                                 </div>
                                             )}
                                         </Draggable>

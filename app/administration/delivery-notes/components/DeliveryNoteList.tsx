@@ -1,4 +1,3 @@
-// enarva-nextjs-app/app/administration/delivery-notes/components/DeliveryNoteList.tsx
 "use client";
 
 import type { DeliveryNote, Order, Client, CompanyInfo } from "@prisma/client";
@@ -36,16 +35,23 @@ export function DeliveryNoteList({ deliveryNotes, companyInfo }: { deliveryNotes
           {deliveryNotes.map((dn) => (
             <tr key={dn.id} className="hover:bg-gray-50 dark:hover:bg-white/5">
               <td className="p-4 text-sm font-semibold text-gray-800 dark:text-dark-text">{dn.deliveryNoteNumber}</td>
-              <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{dn.order.client.name}</td>
+              {/* CORRECTION: client.name → client.nom selon le schéma Prisma */}
+              <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{dn.order.client.nom}</td>
               <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{dn.order.orderNumber}</td>
               <td className="p-4 text-sm text-gray-600 dark:text-dark-subtle">{formatDate(dn.date)}</td>
               <td className="p-4">
-                 <div className="flex items-center justify-center gap-2">
-                  <Link href={`/administration/delivery-notes/${dn.id}`} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-dark-subtle dark:hover:bg-gray-700 inline-block">
-                    <Eye size={16} />
+                <div className="flex justify-center gap-2">
+                  <Link 
+                    href={`/administration/delivery-notes/${dn.id}`}
+                    className="inline-flex items-center justify-center p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    <Eye className="h-4 w-4" />
                   </Link>
-                  <button onClick={() => handleDownload(dn)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-dark-subtle dark:hover:bg-gray-700 inline-block">
-                    <Download size={16} />
+                  <button 
+                    onClick={() => handleDownload(dn)}
+                    className="inline-flex items-center justify-center p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                  >
+                    <Download className="h-4 w-4" />
                   </button>
                 </div>
               </td>
@@ -53,9 +59,6 @@ export function DeliveryNoteList({ deliveryNotes, companyInfo }: { deliveryNotes
           ))}
         </tbody>
       </table>
-      {deliveryNotes.length === 0 && (
-          <p className="py-8 text-center text-gray-500 dark:text-dark-subtle">Aucun bon de livraison trouvé.</p>
-      )}
     </div>
   );
 }

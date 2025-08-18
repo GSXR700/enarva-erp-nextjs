@@ -5,13 +5,18 @@ import { useState } from 'react';
 import { CalendarView } from "./CalendarView";
 import { MissionFormModal } from '../../components/modals/MissionFormModal';
 import { AddMissionButton } from '../../missions/components/AddMissionButton';
-import type { Order, Employee } from '@prisma/client';
+import type { Order, Employee, Client } from '@prisma/client';
 import { Plus } from 'lucide-react';
+
+// 🔧 CORRECTION: Définir le type OrderWithClient qui inclut la relation client
+type OrderWithClient = Order & {
+  client: Client;
+};
 
 // Interface pour les props reçues du composant serveur
 interface PlanningPageClientProps {
     initialEvents: any[]; // Le type 'any' est utilisé ici pour correspondre à ce que FullCalendar attend
-    allOrders: Order[];
+    allOrders: OrderWithClient[]; // 🔧 CORRECTION: Utiliser le bon type
     allEmployees: Employee[];
 }
 

@@ -11,17 +11,17 @@ export default async function PlanningPage() {
             order: { include: { client: { select: { nom: true } } } }
         }
     }),
-    // --- THIS IS THE FIX ---
-    // We must include the client data when fetching orders.
+    // 🔧 CORRECTION: S'assurer que les commandes incluent bien les données client
     prisma.order.findMany({
         where: { status: 'PENDING' },
         orderBy: { date: 'desc' },
         include: {
-            client: true // This line was missing
+            client: true // ✅ Cette ligne est essentielle pour inclure les données client
         }
     }),
     prisma.employee.findMany({
-        where: { user: { role: 'FIELD_WORKER' } }
+        where: { user: { role: 'FIELD_WORKER' } },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }]
     })
   ]);
 

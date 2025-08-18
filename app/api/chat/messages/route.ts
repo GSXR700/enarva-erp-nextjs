@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from "@/lib/auth";
 import { createAndEmitNotification } from '@/lib/notificationService';
 import { getIO } from '@/lib/socket'; // Import direct
 
@@ -65,3 +65,4 @@ export async function POST(request: Request) {
     return new NextResponse('Erreur Interne du Serveur', { status: 500 });
   }
 }
+

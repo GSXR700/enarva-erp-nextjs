@@ -29,5 +29,5 @@ declare module "next-auth/jwt" {
 
 const handler = NextAuth(authOptions);
 
-// CORRECTION CRITIQUE : Export authOptions pour l'utiliser dans d'autres API routes
-export { handler as GET, handler as POST, authOptions };
+// CORRECTION : Ne pas exporter authOptions depuis une route API
+export { handler as GET, handler as POST };

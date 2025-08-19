@@ -1,216 +1,218 @@
-// app/administration/components/Sidebar.tsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase, ChevronDown,
-  Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
-  ShoppingBag, Handshake, Car, Wrench, LucideIcon, Contact
-} from "lucide-react";
-import { Role } from "@prisma/client";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  LayoutDashboard, 
+  Users, 
+  FileText, 
+  Package, 
+  Briefcase,
+  Receipt,
+  DollarSign,
+  BarChart3,
+  Settings,
+  MessageSquare,
+  MapPin,
+  Calendar,
+  ClipboardList,
+  X,
+  Menu
+} from 'lucide-react';
 
 interface SidebarProps {
   sidebarOpen: boolean;
-  setSidebarOpen: (arg: boolean) => void;
-  userRole?: Role;
+  setSidebarOpen: (open: boolean) => void;
+  userRole?: string | null;
 }
 
-const menuItems: {
-    name: string;
-    href?: string;
-    icon: React.ReactElement<LucideIcon>;
-    roles?: Role[];
-    subItems?: { name: string; href: string; icon: React.ReactElement<LucideIcon>; }[];
-}[] = [
-    { name: 'Tableau de Bord', href: '/administration', icon: <LayoutDashboard size={20} /> },
-    {
-        name: 'Opérations', icon: <Briefcase size={20} />, roles: ['ADMIN', 'MANAGER'],
-        subItems: [
-            { name: 'Planning', href: '/administration/planning', icon: <Calendar size={16} /> },
-            { name: 'Suivi Temps Réel', href: '/administration/tracking', icon: <MapPin size={16} /> },
-            { name: 'Missions', href: '/administration/missions', icon: <Briefcase size={16} /> },
-        ]
-    },
-    {
-        name: 'Ventes & CRM', icon: <Handshake size={20} />, roles: ['ADMIN', 'MANAGER'],
-        subItems: [
-            { name: 'Leads (Prospects)', href: '/administration/leads', icon: <Contact size={16} /> },
-            { name: 'Clients', href: '/administration/clients', icon: <Users size={16} /> },
-            { name: 'Devis', href: '/administration/quotes', icon: <FileText size={16} /> },
-        ]
-    },
-    {
-        name: 'Finance & Achats', icon: <CreditCard size={20} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'],
-        subItems: [
-            { name: 'Factures', href: '/administration/invoices', icon: <Receipt size={16} /> },
-            { name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={16} /> },
-            { name: 'Fournisseurs', href: '/administration/suppliers', icon: <ShoppingBag size={16} /> },
-            { name: 'Reporting', href: '/administration/reporting', icon: <Download size={16} /> },
-        ]
-    },
-    {
-        name: 'Ressources Humaines', icon: <Users2 size={20} />, roles: ['ADMIN', 'MANAGER'],
-        subItems: [
-            { name: 'Employés', href: '/administration/employees', icon: <Users2 size={16} /> },
-            { name: 'Paie & RH', href: '/administration/payroll', icon: <CreditCard size={16} /> },
-        ]
-    },
-    {
-        name: 'Logistique & Stock', icon: <Car size={20} />, roles: ['ADMIN', 'MANAGER'],
-        subItems: [
-            { name: 'Équipements', href: '/administration/equipments', icon: <Wrench size={16} /> },
-            { name: 'Produits & Services', href: '/administration/products', icon: <Warehouse size={16} /> },
-            { name: 'Sous-traitants', href: '/administration/subcontractors', icon: <Handshake size={16} /> },
-            { name: 'Bons de Livraison', href: '/administration/delivery-notes', icon: <Truck size={16} /> },
-        ]
-    },
+interface MenuItem {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  roles?: string[];
+  badge?: number;
+}
+
+const menuItems: MenuItem[] = [
+  { 
+    label: 'Tableau de bord', 
+    href: '/administration', 
+    icon: <LayoutDashboard className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Prospects', 
+    href: '/administration/leads', 
+    icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Clients', 
+    href: '/administration/clients', 
+    icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Devis', 
+    href: '/administration/quotes', 
+    icon: <FileText className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Factures', 
+    href: '/administration/invoices', 
+    icon: <Receipt className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Missions', 
+    href: '/administration/missions', 
+    icon: <Briefcase className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Bons de Livraison', 
+    href: '/administration/delivery-notes', 
+    icon: <ClipboardList className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Produits', 
+    href: '/administration/products', 
+    icon: <Package className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Équipements', 
+    href: '/administration/equipment', 
+    icon: <Settings className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Dépenses', 
+    href: '/administration/expenses', 
+    icon: <DollarSign className="h-4 w-4 md:h-5 md:w-5" />,
+    roles: ['ADMIN', 'MANAGER']
+  },
+  { 
+    label: 'Employés', 
+    href: '/administration/employees', 
+    icon: <Users className="h-4 w-4 md:h-5 md:w-5" />,
+    roles: ['ADMIN', 'MANAGER']
+  },
+  { 
+    label: 'Planning', 
+    href: '/administration/planning', 
+    icon: <Calendar className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
+  { 
+    label: 'Rapports', 
+    href: '/administration/reports', 
+    icon: <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />,
+    roles: ['ADMIN', 'MANAGER']
+  },
+  { 
+    label: 'Support', 
+    href: '/administration/support', 
+    icon: <MessageSquare className="h-4 w-4 md:h-5 md:w-5" /> 
+  },
 ];
 
-const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
+export default function Sidebar({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) {
   const pathname = usePathname();
+  const trigger = useRef<HTMLButtonElement>(null);
   const sidebar = useRef<HTMLDivElement>(null);
-
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
-      if (!sidebar.current || !sidebarOpen || sidebar.current.contains(target as Node)) return;
+      if (!sidebar.current || !trigger.current) return;
+      if (!sidebarOpen || sidebar.current.contains(target as Node) || trigger.current.contains(target as Node)) return;
       setSidebarOpen(false);
     };
-    document.addEventListener("click", clickHandler);
-    return () => document.removeEventListener("click", clickHandler);
-  }, [sidebarOpen, setSidebarOpen]);
+    document.addEventListener('click', clickHandler);
+    return () => document.removeEventListener('click', clickHandler);
+  });
 
   useEffect(() => {
-    const activeItem = menuItems.find(item =>
-      item.subItems?.some(sub => pathname.startsWith(sub.href))
-    );
-    setOpenDropdown(activeItem ? activeItem.name : null);
-  }, [pathname]);
+    const keyHandler = ({ keyCode }: KeyboardEvent) => {
+      if (!sidebarOpen || keyCode !== 27) return;
+      setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', keyHandler);
+    return () => document.removeEventListener('keydown', keyHandler);
+  });
 
-  const handleDropdownToggle = (name: string) => {
-    setOpenDropdown(openDropdown === name ? null : name);
-  };
-
-  const handleMouseLeave = () => {
-      if (window.innerWidth > 1024) {
-          setIsCollapsed(true);
-          setOpenDropdown(null); // Fermer les menus uniquement sur le survol du bureau
-      }
-  };
+  const filteredMenuItems = menuItems.filter(item => 
+    !item.roles || item.roles.includes(userRole || '')
+  );
 
   return (
     <>
-        <div className={cn(
-            "fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden",
-            sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )} onClick={() => setSidebarOpen(false)}></div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" aria-hidden="true">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
+        </div>
+      )}
 
-        <aside
-            ref={sidebar}
-            onMouseEnter={() => window.innerWidth > 1024 && setIsCollapsed(false)}
-            onMouseLeave={handleMouseLeave}
-            className={cn(
-                "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
-                "lg:static lg:translate-x-0",
-                sidebarOpen ? "translate-x-0" : "-translate-x-full",
-                isCollapsed ? "lg:w-20" : "lg:w-72"
-            )}
-        >
-            <div className="flex h-20 items-center justify-center px-6 shrink-0">
-                <Link href="/administration">
-                    <div className={cn(isCollapsed ? "lg:hidden" : "block")}>
-                        <Image className="dark:hidden" width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
-                        <Image className="hidden dark:block" width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
-                    </div>
-                    <div className={cn("hidden", isCollapsed && "lg:block")}>
-                        <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.png" alt="Icon" />
-                        <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
-                    </div>
+      {/* Sidebar */}
+      <div
+        ref={sidebar}
+        className={`fixed left-0 top-0 z-50 h-screen w-64 lg:w-72 bg-white dark:bg-boxdark border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 lg:static lg:inset-0`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 lg:px-6 py-4 lg:py-5 border-b border-gray-200 dark:border-gray-700">
+          <Link href="/administration" className="flex items-center">
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              <div className="w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xs lg:text-sm">E</span>
+              </div>
+              <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">Enarva</span>
+            </div>
+          </Link>
+          
+          <button
+            ref={trigger}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="lg:hidden p-1"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="mt-4 lg:mt-6 px-2 lg:px-3 h-full overflow-y-auto pb-20">
+          <div className="space-y-1">
+            {filteredMenuItems.map((item, index) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={index}
+                  href={item.href}
+                  className={`group flex items-center px-2 lg:px-3 py-2 lg:py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-blue-50 border-r-4 border-blue-500 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <span className={`mr-2 lg:mr-3 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'}`}>
+                    {item.icon}
+                  </span>
+                  <span className="truncate">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto inline-block py-0.5 px-2 text-xs bg-red-100 text-red-600 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
-            </div>
+              );
+            })}
+          </div>
+          </nav>
 
-            <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto">
-                <nav className="flex-1 mt-5 py-4 px-4 space-y-2">
-                    {menuItems.map((item) => {
-                        if (item.roles && userRole && !item.roles.includes(userRole)) {
-                            return null;
-                        }
-
-                        const isDropdownOpen = openDropdown === item.name;
-                        const isActive = item.href ? pathname === item.href : item.subItems?.some(sub => pathname.startsWith(sub.href));
-
-                        if (item.subItems) {
-                            return (
-                                <div key={item.name}>
-                                    <button
-                                        onClick={() => handleDropdownToggle(item.name)}
-                                        className={cn(
-                                            "group flex w-full items-center justify-between rounded-md p-3 font-medium duration-200 ease-in-out",
-                                            isActive ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {item.icon}
-                                            <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
-                                        </div>
-                                        <ChevronDown size={16} className={cn("transform transition-transform duration-200", isDropdownOpen && "rotate-180", isCollapsed && "lg:hidden")} />
-                                    </button>
-                                    <div className={cn(
-                                        "overflow-hidden transition-all duration-300 ease-in-out",
-                                        isDropdownOpen ? "max-h-60" : "max-h-0"
-                                    )}>
-                                        <ul className="mt-2 flex flex-col gap-1 pl-8">
-                                            {item.subItems.map(subItem => (
-                                                <li key={subItem.name}>
-                                                    <Link href={subItem.href} className={cn("group relative flex items-center gap-3 rounded-md p-2 text-sm duration-200", pathname.startsWith(subItem.href) ? "text-primary dark:text-white" : "text-gray-500 hover:text-primary dark:text-dark-subtle dark:hover:text-white")}>
-                                                        {subItem.icon}
-                                                        <span>{subItem.name}</span>
-                                                    </Link>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        return (
-                            <div key={item.name}>
-                                <Link href={item.href || '#'}
-                                    className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out",
-                                        isCollapsed && "lg:justify-center",
-                                        (pathname.startsWith(item.href || '#') && item.href !== '/administration') || pathname === item.href ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                    )}
-                                >
-                                    {item.icon}
-                                    <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
-                                </Link>
-                            </div>
-                        );
-                    })}
-                </nav>
-                <div className="mt-auto px-4 pb-4">
-                    <Link
-                        href="/administration/settings"
-                        className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700",
-                            isCollapsed && "lg:justify-center",
-                            pathname.startsWith('/administration/settings') ? 'bg-gray-100 dark:bg-gray-700' : ''
-                        )}
-                    >
-                        <Settings size={20} />
-                        <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>Réglages</span>
-                    </Link>
-                </div>
-            </div>
-        </aside>
-    </>
-  );
-};
-
-export default Sidebar;
+       {/* Footer */}
+       <div className="absolute bottom-0 left-0 right-0 p-3 lg:p-4 border-t border-gray-200 dark:border-gray-700">
+         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+           Enarva SARL AU v2.0
+         </div>
+       </div>
+     </div>
+   </>
+ );
+}

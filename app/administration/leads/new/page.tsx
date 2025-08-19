@@ -1,14 +1,21 @@
-// app/administration/leads/new/page.tsx
-import { getLeadFormData } from "../actions";
-import { NewLeadClientPage } from "./NewLeadClientPage";
+import prisma from "@/lib/prisma";
+import { NewLeadForm } from "./components/NewLeadForm";
+import { Metadata } from "next";
 
-// This is an async Server Component to fetch data
+export const metadata: Metadata = {
+  title: 'Nouveau Prospect | Enarva Admin',
+  description: 'Créer un nouveau prospect',
+};
+
 export default async function NewLeadPage() {
-  // Fetch the required data for the form's dropdowns
-  const { users, subcontractors } = await getLeadFormData();
+  const [users, subcontractors] = await Promise.all([
+    prisma.user.findMany({ orderBy: { name: "asc" } }),
+    prisma.subcontractor.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   return (
-    // Pass the fetched data as props to the new client component
-    <NewLeadClientPage users={users} subcontractors={subcontractors} />
+    <div className="container mx-auto px-4 py-4 md:py-8">
+      <NewLeadForm users={users} subcontractors={subcontractors} />
+    </div>
   );
 }

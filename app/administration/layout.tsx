@@ -7,7 +7,8 @@ import { ProgressBar } from "./components/ProgressBar";
 import { useSession } from "next-auth/react";
 import { InitialLoader } from "./components/skeletons/InitialLoader";
 import { ModalProvider } from "@/providers/modal-provider";
-import { NotificationsProvider } from "@/app/context/NotificationContext"; // <-- 1. Importer le fournisseur
+import { NotificationsProvider } from "@/app/context/NotificationContext";
+import { cn } from "@/lib/utils";
 
 export default function AdminLayout({
   children,
@@ -15,6 +16,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true); // État initial : réduite
   const { data: session, status } = useSession();
 
   if (status === "loading") {
@@ -22,7 +24,6 @@ export default function AdminLayout({
   }
 
   return (
-    // 2. Envelopper tout le contenu avec le fournisseur de notifications
     <NotificationsProvider>
       <div className="dark:bg-dark-background dark:text-gray-100">
         <ProgressBar />
@@ -30,9 +31,15 @@ export default function AdminLayout({
           <Sidebar
             sidebarOpen={sidebarOpen}
             setSidebarOpen={setSidebarOpen}
+            isCollapsed={isCollapsed}
+            setIsCollapsed={setIsCollapsed}
             userRole={session?.user?.role}
           />
-          <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+          <div className={cn(
+            "relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out",
+            // Applique la marge à gauche pour laisser la place à la sidebar
+            "lg:ml-20"
+          )}>
             <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             <main>
               <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">

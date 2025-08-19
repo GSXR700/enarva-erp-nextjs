@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase,
   Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
-  ShoppingBag, Handshake, Wrench, LucideIcon, Contact, LogOut, ChevronLeft
+  ShoppingBag, Handshake, Wrench, LucideIcon, Contact, LogOut, ShieldQuestion
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -16,9 +16,12 @@ import { signOut } from "next-auth/react";
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
+  isCollapsed: boolean;
+  setIsCollapsed: (arg: boolean) => void;
   userRole?: Role;
 }
 
+// Liste de menu complète et réorganisée
 const menuItems: {
     name: string;
     href: string;
@@ -34,16 +37,20 @@ const menuItems: {
     { name: 'Devis', href: '/administration/quotes', icon: <FileText size={18} />, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Factures', href: '/administration/invoices', icon: <Receipt size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
     { name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { name: 'Fournisseurs', href: '/administration/suppliers', icon: <ShoppingBag size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
     { name: 'Employés', href: '/administration/employees', icon: <Users2 size={18} />, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Paie', href: '/administration/payroll', icon: <CreditCard size={18} />, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Équipements', href: '/administration/equipments', icon: <Wrench size={18} />, roles: ['ADMIN', 'MANAGER'] },
     { name: 'Produits', href: '/administration/products', icon: <Warehouse size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Sous-traitants', href: '/administration/subcontractors', icon: <Handshake size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Bons de Livraison', href: '/administration/delivery-notes', icon: <Truck size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Support', href: '/administration/support', icon: <ShieldQuestion size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Reporting', href: '/administration/reporting', icon: <Download size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
 ];
 
-const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, isCollapsed, setIsCollapsed, userRole }: SidebarProps) => {
   const pathname = usePathname();
   const sidebar = useRef<HTMLDivElement>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -56,36 +63,31 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
 
   return (
     <>
-      <div
-        className={cn(
-          "fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden",
-          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={() => setSidebarOpen(false)}
-      ></div>
-
+      <div className={cn("fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden", sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none")} onClick={() => setSidebarOpen(false)}></div>
       <aside
         ref={sidebar}
+        onMouseEnter={() => window.innerWidth > 1024 && setIsCollapsed(false)}
+        onMouseLeave={() => window.innerWidth > 1024 && setIsCollapsed(true)}
         className={cn(
           "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
-          // Logique pour le bureau
           "lg:translate-x-0",
           isCollapsed ? "lg:w-20" : "lg:w-72"
         )}
       >
-        <div className="flex h-20 items-center justify-between px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
-          <Link href="/administration" className={cn(isCollapsed && "lg:hidden")}>
-            <Image className="dark:hidden" width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
-            <Image className="hidden dark:block" width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
+        <div className="flex h-20 items-center justify-center px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
+          <Link href="/administration">
+            <div className={cn("dark:hidden", isCollapsed ? "lg:hidden" : "block")}>
+                <Image width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
+            </div>
+            <div className={cn("hidden dark:block", isCollapsed ? "lg:hidden" : "block")}>
+                <Image width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
+            </div>
+            <div className={cn("hidden", isCollapsed && "lg:block")}>
+                <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Icon" />
+                <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
+            </div>
           </Link>
-          <Link href="/administration" className={cn("hidden", isCollapsed && "lg:block")}>
-             <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Icon" />
-             <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
-          </Link>
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className={cn("hidden lg:block p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-border", isCollapsed && "rotate-180")}>
-            <ChevronLeft size={16} />
-          </button>
         </div>
 
         <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto">
@@ -99,13 +101,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                   href={item.href}
                   onClick={() => sidebarOpen && setSidebarOpen(false)}
                   title={isCollapsed ? item.name : ""}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
-                    isActive
-                      ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
-                    isCollapsed && "lg:justify-center"
-                  )}
+                  className={cn("group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out", isActive ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg", isCollapsed && "lg:justify-center")}
                 >
                   {item.icon}
                   <span className={cn("whitespace-nowrap", isCollapsed && "lg:hidden")}>{item.name}</span>
@@ -115,26 +111,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
           </nav>
 
           <div className="mt-auto p-4 space-y-2 border-t border-gray-100 dark:border-dark-border">
-             <Link
-                href="/administration/settings"
-                className={cn(
-                    "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
-                    pathname.startsWith('/administration/settings')
-                      ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
-                    isCollapsed && "lg:justify-center"
-                )}
-             >
+             <Link href="/administration/settings" className={cn("group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out", pathname.startsWith('/administration/settings') ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg", isCollapsed && "lg:justify-center")}>
                 <Settings size={18} />
                 <span className={cn(isCollapsed && "lg:hidden")}>Réglages</span>
              </Link>
-             <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
-                className={cn(
-                    "group flex w-full items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
-                    isCollapsed && "lg:justify-center"
-                )}
-             >
+             <button onClick={() => signOut({ callbackUrl: '/login' })} className={cn("group flex w-full items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg", isCollapsed && "lg:justify-center")}>
                 <LogOut size={18} />
                 <span className={cn(isCollapsed && "lg:hidden")}>Déconnexion</span>
              </button>

@@ -1,4 +1,4 @@
-// enarva-nextjs-dashboard-app/app/administration/quotes/[id]/components/QuoteView.tsx
+// app/administration/quotes/[id]/components/QuoteView.tsx
 "use client";
 import type { Quote, Client, CompanyInfo, Prestation, JuridicState } from "@prisma/client";
 import { useState } from "react";
@@ -205,7 +205,6 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
             </table>
           </div>
           
-          {/* ✅ CORRECTION: Logique des totaux selon juridicState */}
           <div className="flex justify-end mt-8">
             <div className="w-full max-w-xs space-y-2">
               <div className="flex justify-between text-gray-600 dark:text-dark-subtle">
@@ -213,7 +212,7 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
                 <span>{formatCurrency(quote.totalHT)}</span>
               </div>
               
-              {/* ✅ CORRECTION: Utilisation de 'WHITE' au lieu de 'LEGAL' selon votre schéma Prisma */}
+              {/* ✅ CORRECTION: Utilisation de 'LEGAL' au lieu de 'WHITE' selon votre schéma Prisma */}
               {quote.juridicState === 'LEGAL' && (
                 <>
                   <div className="flex justify-between text-gray-600 dark:text-dark-subtle">

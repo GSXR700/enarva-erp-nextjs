@@ -1,7 +1,7 @@
 // app/administration/layout.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import { ProgressBar } from "./components/ProgressBar";
@@ -17,43 +17,21 @@ export default function AdminLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { data: session, status } = useSession();
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Détecter si on est sur mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   if (status === "loading") {
     return <InitialLoader />;
   }
 
   return (
-    <div className="dark:bg-boxdark-2 dark:text-bodydark min-h-screen">
+    <div className="dark:bg-boxdark-2 dark:text-bodydark">
       <ProgressBar />
       <NotificationsProvider>
         <ModalProvider />
         <div className="flex h-screen overflow-hidden">
-          {/* Sidebar avec overlay mode sur desktop et mobile */}
-          <Sidebar 
-            sidebarOpen={sidebarOpen} 
-            setSidebarOpen={setSidebarOpen} 
-            userRole={session?.user?.role} 
-          />
-          
-          {/* Contenu principal */}
+          <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} userRole={session?.user?.role} />
           <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
-            <Header 
-              sidebarOpen={sidebarOpen} 
-              setSidebarOpen={setSidebarOpen} 
-            />
-            <main className="flex-1">
+            <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <main>
               <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
                 {children}
               </div>

@@ -1,273 +1,216 @@
 // app/administration/components/Sidebar.tsx
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  Package, 
-  Briefcase,
-  Receipt,
-  DollarSign,
-  BarChart3,
-  Settings,
-  MessageSquare,
-  MapPin,
-  Calendar,
-  ClipboardList,
-  ChevronLeft,
-  ChevronRight,
-  X
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase, ChevronDown,
+  Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
+  ShoppingBag, Handshake, Car, Wrench, LucideIcon, Contact
+} from "lucide-react";
+import { Role } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  userRole?: string | null;
+  setSidebarOpen: (arg: boolean) => void;
+  userRole?: Role;
 }
 
-interface MenuItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  roles?: string[];
-  badge?: number;
-}
-
-const menuItems: MenuItem[] = [
-  { 
-    label: 'Tableau de bord', 
-    href: '/administration', 
-    icon: <LayoutDashboard size={20} /> 
-  },
-  { 
-    label: 'Clients', 
-    href: '/administration/clients', 
-    icon: <Users size={20} /> 
-  },
-  { 
-    label: 'Devis', 
-    href: '/administration/quotes', 
-    icon: <FileText size={20} /> 
-  },
-  { 
-    label: 'Factures', 
-    href: '/administration/invoices', 
-    icon: <Receipt size={20} /> 
-  },
-  { 
-    label: 'Missions', 
-    href: '/administration/missions', 
-    icon: <Briefcase size={20} /> 
-  },
-  { 
-    label: 'Bons de Livraison', 
-    href: '/administration/delivery-notes', 
-    icon: <ClipboardList size={20} /> 
-  },
-  { 
-    label: 'Inventaire', 
-    href: '/administration/inventory', 
-    icon: <Package size={20} /> 
-  },
-  { 
-    label: 'Dépenses', 
-    href: '/administration/expenses', 
-    icon: <DollarSign size={20} />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Employés', 
-    href: '/administration/employees', 
-    icon: <Users size={20} />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Planning', 
-    href: '/administration/planning', 
-    icon: <Calendar size={20} /> 
-  },
-  { 
-    label: 'Messagerie', 
-    href: '/administration/chat', 
-    icon: <MessageSquare size={20} />,
-    badge: 0 // Sera mis à jour dynamiquement
-  },
-  { 
-    label: 'Carte', 
-    href: '/administration/map', 
-    icon: <MapPin size={20} /> 
-  },
-  { 
-    label: 'Rapports', 
-    href: '/administration/reports', 
-    icon: <BarChart3 size={20} />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Paramètres', 
-    href: '/administration/settings', 
-    icon: <Settings size={20} /> 
-  },
+const menuItems: {
+    name: string;
+    href?: string;
+    icon: React.ReactElement<LucideIcon>;
+    roles?: Role[];
+    subItems?: { name: string; href: string; icon: React.ReactElement<LucideIcon>; }[];
+}[] = [
+    { name: 'Tableau de Bord', href: '/administration', icon: <LayoutDashboard size={20} /> },
+    {
+        name: 'Opérations', icon: <Briefcase size={20} />, roles: ['ADMIN', 'MANAGER'],
+        subItems: [
+            { name: 'Planning', href: '/administration/planning', icon: <Calendar size={16} /> },
+            { name: 'Suivi Temps Réel', href: '/administration/tracking', icon: <MapPin size={16} /> },
+            { name: 'Missions', href: '/administration/missions', icon: <Briefcase size={16} /> },
+        ]
+    },
+    {
+        name: 'Ventes & CRM', icon: <Handshake size={20} />, roles: ['ADMIN', 'MANAGER'],
+        subItems: [
+            { name: 'Leads (Prospects)', href: '/administration/leads', icon: <Contact size={16} /> },
+            { name: 'Clients', href: '/administration/clients', icon: <Users size={16} /> },
+            { name: 'Devis', href: '/administration/quotes', icon: <FileText size={16} /> },
+        ]
+    },
+    {
+        name: 'Finance & Achats', icon: <CreditCard size={20} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'],
+        subItems: [
+            { name: 'Factures', href: '/administration/invoices', icon: <Receipt size={16} /> },
+            { name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={16} /> },
+            { name: 'Fournisseurs', href: '/administration/suppliers', icon: <ShoppingBag size={16} /> },
+            { name: 'Reporting', href: '/administration/reporting', icon: <Download size={16} /> },
+        ]
+    },
+    {
+        name: 'Ressources Humaines', icon: <Users2 size={20} />, roles: ['ADMIN', 'MANAGER'],
+        subItems: [
+            { name: 'Employés', href: '/administration/employees', icon: <Users2 size={16} /> },
+            { name: 'Paie & RH', href: '/administration/payroll', icon: <CreditCard size={16} /> },
+        ]
+    },
+    {
+        name: 'Logistique & Stock', icon: <Car size={20} />, roles: ['ADMIN', 'MANAGER'],
+        subItems: [
+            { name: 'Équipements', href: '/administration/equipments', icon: <Wrench size={16} /> },
+            { name: 'Produits & Services', href: '/administration/products', icon: <Warehouse size={16} /> },
+            { name: 'Sous-traitants', href: '/administration/subcontractors', icon: <Handshake size={16} /> },
+            { name: 'Bons de Livraison', href: '/administration/delivery-notes', icon: <Truck size={16} /> },
+        ]
+    },
 ];
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   const pathname = usePathname();
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
+  const sidebar = useRef<HTMLDivElement>(null);
 
-  // Filtrer les éléments du menu selon le rôle
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.includes(userRole || '');
-  });
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // Fermer la sidebar en cliquant à l'extérieur (mobile)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sidebarOpen &&
-        sidebarRef.current &&
-        !sidebarRef.current.contains(event.target as Node) &&
-        window.innerWidth < 1024
-      ) {
-        setSidebarOpen(false);
-      }
+    const clickHandler = ({ target }: MouseEvent) => {
+      if (!sidebar.current || !sidebarOpen || sidebar.current.contains(target as Node)) return;
+      setSidebarOpen(false);
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("click", clickHandler);
+    return () => document.removeEventListener("click", clickHandler);
   }, [sidebarOpen, setSidebarOpen]);
 
-  // Récupérer le nombre de messages non lus
   useEffect(() => {
-    fetch('/api/chat/unread-count')
-      .then(res => res.json())
-      .then(data => setUnreadMessages(data.count || 0))
-      .catch(() => {});
+    const activeItem = menuItems.find(item =>
+      item.subItems?.some(sub => pathname.startsWith(sub.href))
+    );
+    setOpenDropdown(activeItem ? activeItem.name : null);
   }, [pathname]);
 
-  const handleToggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+  const handleDropdownToggle = (name: string) => {
+    setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  const handleMouseLeave = () => {
+      if (window.innerWidth > 1024) {
+          setIsCollapsed(true);
+          setOpenDropdown(null); // Fermer les menus uniquement sur le survol du bureau
+      }
   };
 
   return (
     <>
-      {/* Overlay pour mobile et desktop quand sidebar est ouverte */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+        <div className={cn(
+            "fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden",
+            sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )} onClick={() => setSidebarOpen(false)}></div>
 
-      {/* Sidebar */}
-      <aside
-        ref={sidebarRef}
-        className={`
-          fixed left-0 top-0 z-50 h-screen bg-dark-container shadow-xl
-          transition-all duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${isCollapsed ? 'w-20' : 'w-72'}
-          lg:relative lg:translate-x-0
-        `}
-      >
-        <div className="flex h-full flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-dark-border">
-            {!isCollapsed && (
-              <Link href="/administration" className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">E</span>
-                </div>
-                <span className="text-xl font-bold text-white">Enarva</span>
-              </Link>
+        <aside
+            ref={sidebar}
+            onMouseEnter={() => window.innerWidth > 1024 && setIsCollapsed(false)}
+            onMouseLeave={handleMouseLeave}
+            className={cn(
+                "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
+                "lg:static lg:translate-x-0",
+                sidebarOpen ? "translate-x-0" : "-translate-x-full",
+                isCollapsed ? "lg:w-20" : "lg:w-72"
             )}
-            
-            {/* Boutons de contrôle */}
-            <div className="flex items-center gap-2">
-              {/* Bouton collapse (desktop) */}
-              <button
-                onClick={handleToggleCollapse}
-                className="hidden lg:flex items-center justify-center p-2 rounded-lg hover:bg-dark-surface transition-colors"
-              >
-                {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-              </button>
-              
-              {/* Bouton fermer (mobile) */}
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-2 rounded-lg hover:bg-dark-surface transition-colors"
-              >
-                <X size={20} />
-              </button>
+        >
+            <div className="flex h-20 items-center justify-center px-6 shrink-0">
+                <Link href="/administration">
+                    <div className={cn(isCollapsed ? "lg:hidden" : "block")}>
+                        <Image className="dark:hidden" width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
+                        <Image className="hidden dark:block" width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
+                    </div>
+                    <div className={cn("hidden", isCollapsed && "lg:block")}>
+                        <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.png" alt="Icon" />
+                        <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
+                    </div>
+                </Link>
             </div>
-          </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4">
-            <ul className="space-y-1 px-3">
-              {filteredMenuItems.map((item) => {
-                const isActive = pathname === item.href || 
-                  (item.href !== '/administration' && pathname.startsWith(item.href));
-                
-                // Mettre à jour le badge pour la messagerie
-                if (item.label === 'Messagerie') {
-                  item.badge = unreadMessages;
-                }
-                
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => window.innerWidth < 1024 && setSidebarOpen(false)}
-                      className={`
-                        flex items-center gap-3 px-3 py-2.5 rounded-lg
-                        transition-all duration-200
-                        ${isActive 
-                          ? 'bg-primary text-white shadow-lg' 
-                          : 'text-gray-300 hover:bg-dark-surface hover:text-white'
+            <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto">
+                <nav className="flex-1 mt-5 py-4 px-4 space-y-2">
+                    {menuItems.map((item) => {
+                        if (item.roles && userRole && !item.roles.includes(userRole)) {
+                            return null;
                         }
-                        ${isCollapsed ? 'justify-center' : ''}
-                      `}
-                      title={isCollapsed ? item.label : undefined}
-                    >
-                      <span className="flex-shrink-0">{item.icon}</span>
-                      {!isCollapsed && (
-                        <>
-                          <span className="flex-1">{item.label}</span>
-                          {item.badge !== undefined && item.badge > 0 && (
-                            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                              {item.badge > 99 ? '99+' : item.badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {isCollapsed && item.badge !== undefined && item.badge > 0 && (
-                        <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
 
-          {/* Footer avec informations utilisateur */}
-          {!isCollapsed && (
-            <div className="border-t border-dark-border p-4">
-              <div className="text-xs text-gray-400">
-                <p>© 2025 Enarva SARL</p>
-                <p className="mt-1">Version 2.0.1</p>
-              </div>
+                        const isDropdownOpen = openDropdown === item.name;
+                        const isActive = item.href ? pathname === item.href : item.subItems?.some(sub => pathname.startsWith(sub.href));
+
+                        if (item.subItems) {
+                            return (
+                                <div key={item.name}>
+                                    <button
+                                        onClick={() => handleDropdownToggle(item.name)}
+                                        className={cn(
+                                            "group flex w-full items-center justify-between rounded-md p-3 font-medium duration-200 ease-in-out",
+                                            isActive ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {item.icon}
+                                            <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
+                                        </div>
+                                        <ChevronDown size={16} className={cn("transform transition-transform duration-200", isDropdownOpen && "rotate-180", isCollapsed && "lg:hidden")} />
+                                    </button>
+                                    <div className={cn(
+                                        "overflow-hidden transition-all duration-300 ease-in-out",
+                                        isDropdownOpen ? "max-h-60" : "max-h-0"
+                                    )}>
+                                        <ul className="mt-2 flex flex-col gap-1 pl-8">
+                                            {item.subItems.map(subItem => (
+                                                <li key={subItem.name}>
+                                                    <Link href={subItem.href} className={cn("group relative flex items-center gap-3 rounded-md p-2 text-sm duration-200", pathname.startsWith(subItem.href) ? "text-primary dark:text-white" : "text-gray-500 hover:text-primary dark:text-dark-subtle dark:hover:text-white")}>
+                                                        {subItem.icon}
+                                                        <span>{subItem.name}</span>
+                                                    </Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div key={item.name}>
+                                <Link href={item.href || '#'}
+                                    className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out",
+                                        isCollapsed && "lg:justify-center",
+                                        (pathname.startsWith(item.href || '#') && item.href !== '/administration') || pathname === item.href ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                    )}
+                                >
+                                    {item.icon}
+                                    <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
+                                </Link>
+                            </div>
+                        );
+                    })}
+                </nav>
+                <div className="mt-auto px-4 pb-4">
+                    <Link
+                        href="/administration/settings"
+                        className={cn("group flex items-center gap-3 rounded-md p-3 font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700",
+                            isCollapsed && "lg:justify-center",
+                            pathname.startsWith('/administration/settings') ? 'bg-gray-100 dark:bg-gray-700' : ''
+                        )}
+                    >
+                        <Settings size={20} />
+                        <span className={cn("whitespace-nowrap duration-200", isCollapsed && "lg:hidden")}>Réglages</span>
+                    </Link>
+                </div>
             </div>
-          )}
-        </div>
-      </aside>
+        </aside>
     </>
   );
-}
+};
+
+export default Sidebar;

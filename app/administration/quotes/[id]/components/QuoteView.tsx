@@ -1,5 +1,4 @@
-// app/administration/quotes/[id]/components/QuoteView.tsx
-
+// enarva-nextjs-dashboard-app/app/administration/quotes/[id]/components/QuoteView.tsx
 "use client";
 import type { Quote, Client, CompanyInfo, Prestation, JuridicState } from "@prisma/client";
 import { useState } from "react";
@@ -28,7 +27,7 @@ type QuoteWithDetails = Quote & {
   prestation: Prestation | null;
 };
 
-// ✅ CORRECTION PRINCIPALE: Interface nommée pour les props
+// ✅ INTERFACE CRITIQUE: Cette interface manquait et causait l'erreur de build
 interface QuoteViewProps {
   quote: QuoteWithDetails;
   companyInfo: CompanyInfo;
@@ -51,13 +50,14 @@ const JuridicStateBadge = ({ state }: { state: JuridicState }) => {
   );
 };
 
-// ✅ CORRECTION: Utilisation de l'interface QuoteViewProps
+// ✅ CORRECTION: Utilisation de l'interface QuoteViewProps au lieu de l'interface inline
 export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(date));
   const formatCurrency = (amount: number | null | undefined) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount || 0);
   
   const items = (quote.items as (QuoteItem | LegacyQuoteItem)[]).map(item => {
+    // Normalize legacy items to new format
     if ('qte' in item) {
       return {
         designation: item.designation,
@@ -212,6 +212,7 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
                 <span>{formatCurrency(quote.totalHT)}</span>
               </div>
               
+              {/* ✅ CORRECTION: Utilisation de 'LEGAL' au lieu de 'WHITE' selon votre schéma Prisma */}
               {quote.juridicState === 'LEGAL' && (
                 <>
                   <div className="flex justify-between text-gray-600 dark:text-dark-subtle">
@@ -225,6 +226,7 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
                 </>
               )}
               
+              {/* Pour les clients en juridicState BLACK (hors TVA) */}
               {quote.juridicState === 'BLACK' && (
                 <div className="pt-2 mt-2 border-t border-gray-200 dark:border-dark-border flex justify-between font-bold text-lg text-gray-800 dark:text-dark-text">
                   <span>Total HT (Hors TVA)</span>

@@ -1,13 +1,13 @@
-// app/administration/leads/components/LeadsPageClient.tsx
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "next/link"; // Importer Link
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { Lead, User, Subcontractor } from "@prisma/client";
 import { LeadList } from "./LeadList";
 import { LeadKanbanView } from "./LeadKanbanView";
-import { LeadFormModal } from "./modals/LeadFormModal"; // We will create this modal
+// La modale n'est plus nécessaire ici
+// import { LeadFormModal } from "./modals/LeadFormModal"; 
 
 export type LeadWithAssignedUser = Lead & {
   assignedTo: {
@@ -39,16 +39,12 @@ export const LeadsPageClient = ({
   hasPrevPage
 }: LeadsPageClientProps) => {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // La gestion de la modale est supprimée
+  // const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <>
-      <LeadFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        users={users}
-        subcontractors={subcontractors}
-      />
+      {/* La modale est supprimée d'ici */}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -60,16 +56,17 @@ export const LeadsPageClient = ({
             </p>
           </div>
           <div className="flex items-center space-x-2">
-              <button title="Vue Liste" onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <button title="Vue Liste" onClick={() => setViewMode('list')} className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-blue-100 dark:bg-primary/20' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-surface'}`}>
                   <List className="h-5 w-5"/>
               </button>
-              <button title="Vue Kanban" onClick={() => setViewMode('kanban')} className={`p-2 rounded-md ${viewMode === 'kanban' ? 'bg-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}>
+              <button title="Vue Kanban" onClick={() => setViewMode('kanban')} className={`p-2 rounded-md ${viewMode === 'kanban' ? 'bg-blue-100 dark:bg-primary/20' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-surface'}`}>
                   <LayoutGrid className="h-5 w-5"/>
               </button>
-              <div className="w-px h-8 bg-gray-200 mx-2"></div>
-              <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-white hover:bg-primary/90 h-10 py-2 px-4">
+              <div className="w-px h-8 bg-gray-200 dark:bg-dark-border mx-2"></div>
+              {/* Le bouton est maintenant un Link */}
+              <Link href="/administration/leads/new" className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-white hover:bg-primary/90 h-10 py-2 px-4">
                 <Plus className="mr-2 h-4 w-4" /> Ajouter
-              </button>
+              </Link>
           </div>
         </div>
 

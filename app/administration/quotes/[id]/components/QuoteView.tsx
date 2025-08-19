@@ -1,5 +1,6 @@
-// enarva-nextjs-dashboard-app/app/administration/quotes/[id]/components/QuoteView.tsx
+// app/administration/quotes/[id]/components/QuoteView.tsx
 "use client";
+
 import type { Quote, Client, CompanyInfo, Prestation, JuridicState } from "@prisma/client";
 import { useState } from "react";
 import Link from "next/link";
@@ -22,19 +23,19 @@ type LegacyQuoteItem = {
   total_ht: number;
 };
 
-type QuoteWithDetails = Quote & { 
+type QuoteWithDetails = Quote & {
   client: Client;
   prestation: Prestation | null;
 };
 
-// ✅ INTERFACE CRITIQUE: Cette interface manquait et causait l'erreur de build
+// ✅ INTERFACE corrigée
 interface QuoteViewProps {
   quote: QuoteWithDetails;
   companyInfo: CompanyInfo;
 }
 
 const JuridicStateBadge = ({ state }: { state: JuridicState }) => {
-  if (state === 'BLACK') {
+  if (state === "BLACK") {
     return (
       <span className="flex items-center gap-1.5 text-sm bg-yellow-100 text-yellow-800 font-medium px-2.5 py-0.5 rounded-full dark:bg-yellow-900 dark:text-yellow-300">
         <AlertTriangle size={14} />
@@ -50,20 +51,25 @@ const JuridicStateBadge = ({ state }: { state: JuridicState }) => {
   );
 };
 
-// ✅ CORRECTION: Utilisation de l'interface QuoteViewProps au lieu de l'interface inline
 export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const formatDate = (date: Date) => new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(date));
-  const formatCurrency = (amount: number | null | undefined) => new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount || 0);
-  
-  const items = (quote.items as (QuoteItem | LegacyQuoteItem)[]).map(item => {
-    // Normalize legacy items to new format
-    if ('qte' in item) {
+
+  const formatDate = (date: Date) =>
+    new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date(date));
+
+  const formatCurrency = (amount: number | null | undefined) =>
+    new Intl.NumberFormat("fr-MA", {
+      style: "currency",
+      currency: "MAD",
+    }).format(amount || 0);
+
+  const items = (quote.items as (QuoteItem | LegacyQuoteItem)[]).map((item) => {
+    if ("qte" in item) {
       return {
         designation: item.designation,
         quantity: String(item.qte),
         unitPrice: String(item.pu_ht),
-        total: item.total_ht
+        total: item.total_ht,
       };
     }
     return item;
@@ -89,33 +95,33 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Link 
-              href="/administration/quotes" 
+            <Link
+              href="/administration/quotes"
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 dark:bg-dark-container dark:text-dark-subtle dark:border-dark-border dark:hover:bg-dark-surface"
             >
               Retour
             </Link>
-            <button 
-              onClick={handleDownload} 
+            <button
+              onClick={handleDownload}
               className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 dark:bg-dark-container dark:text-dark-subtle dark:border-dark-border dark:hover:bg-dark-surface"
             >
-              <Download className="mr-2 h-4 w-4"/>
+              <Download className="mr-2 h-4 w-4" />
               Télécharger
             </button>
-            {quote.status !== 'ACCEPTED' && (
+            {quote.status !== "ACCEPTED" && (
               <>
-                <Link 
-                  href={`/administration/quotes/${quote.id}/edit`} 
+                <Link
+                  href={`/administration/quotes/${quote.id}/edit`}
                   className="flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700"
                 >
-                  <Edit className="mr-2 h-4 w-4"/>
+                  <Edit className="mr-2 h-4 w-4" />
                   Modifier
                 </Link>
-                <button 
-                  onClick={() => setIsModalOpen(true)} 
+                <button
+                  onClick={() => setIsModalOpen(true)}
                   className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:opacity-90"
                 >
-                  <CheckCircle className="mr-2 h-4 w-4"/>
+                  <CheckCircle className="mr-2 h-4 w-4" />
                   Accepter
                 </button>
               </>
@@ -134,7 +140,7 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text">Pour:</h3>
               <p className="mt-2 font-medium text-gray-700 dark:text-dark-text">{quote.client.nom}</p>
               <p className="text-gray-600 dark:text-dark-subtle">
-                {quote.client.adresse || 'Adresse non spécifiée'}
+                {quote.client.adresse || "Adresse non spécifiée"}
               </p>
             </div>
           </div>
@@ -204,16 +210,15 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
               </tbody>
             </table>
           </div>
-          
+
           <div className="flex justify-end mt-8">
             <div className="w-full max-w-xs space-y-2">
               <div className="flex justify-between text-gray-600 dark:text-dark-subtle">
                 <span>Total HT</span>
                 <span>{formatCurrency(quote.totalHT)}</span>
               </div>
-              
-              {/* ✅ CORRECTION: Utilisation de 'LEGAL' au lieu de 'WHITE' selon votre schéma Prisma */}
-              {quote.juridicState === 'LEGAL' && (
+
+              {quote.juridicState === "LEGAL" && (
                 <>
                   <div className="flex justify-between text-gray-600 dark:text-dark-subtle">
                     <span>TVA (20%)</span>
@@ -225,9 +230,8 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
                   </div>
                 </>
               )}
-              
-              {/* Pour les clients en juridicState BLACK (hors TVA) */}
-              {quote.juridicState === 'BLACK' && (
+
+              {quote.juridicState === "BLACK" && (
                 <div className="pt-2 mt-2 border-t border-gray-200 dark:border-dark-border flex justify-between font-bold text-lg text-gray-800 dark:text-dark-text">
                   <span>Total HT (Hors TVA)</span>
                   <span>{formatCurrency(quote.totalHT)}</span>
@@ -237,11 +241,11 @@ export function QuoteView({ quote, companyInfo }: QuoteViewProps) {
           </div>
         </div>
       </div>
-      
-      <ConfirmationModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        quoteId={quote.id} 
+
+      <ConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        quoteId={quote.id}
       />
     </>
   );

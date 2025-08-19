@@ -1,218 +1,166 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  LayoutDashboard, 
-  Users, 
-  FileText, 
-  Package, 
-  Briefcase,
-  Receipt,
-  DollarSign,
-  BarChart3,
-  Settings,
-  MessageSquare,
-  MapPin,
-  Calendar,
-  ClipboardList,
-  X,
-  Menu
-} from 'lucide-react';
+import React, { useEffect, useRef } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase,
+  Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
+  ShoppingBag, Handshake, Wrench, LucideIcon, Contact, LogOut
+} from "lucide-react";
+import { Role } from "@prisma/client";
+import { cn } from "@/lib/utils";
+import { signOut } from "next-auth/react";
 
 interface SidebarProps {
   sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  userRole?: string | null;
+  setSidebarOpen: (arg: boolean) => void;
+  userRole?: Role;
 }
 
-interface MenuItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-  roles?: string[];
-  badge?: number;
-}
-
-const menuItems: MenuItem[] = [
-  { 
-    label: 'Tableau de bord', 
-    href: '/administration', 
-    icon: <LayoutDashboard className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Prospects', 
-    href: '/administration/leads', 
-    icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Clients', 
-    href: '/administration/clients', 
-    icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Devis', 
-    href: '/administration/quotes', 
-    icon: <FileText className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Factures', 
-    href: '/administration/invoices', 
-    icon: <Receipt className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Missions', 
-    href: '/administration/missions', 
-    icon: <Briefcase className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Bons de Livraison', 
-    href: '/administration/delivery-notes', 
-    icon: <ClipboardList className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Produits', 
-    href: '/administration/products', 
-    icon: <Package className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Équipements', 
-    href: '/administration/equipment', 
-    icon: <Settings className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Dépenses', 
-    href: '/administration/expenses', 
-    icon: <DollarSign className="h-4 w-4 md:h-5 md:w-5" />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Employés', 
-    href: '/administration/employees', 
-    icon: <Users className="h-4 w-4 md:h-5 md:w-5" />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Planning', 
-    href: '/administration/planning', 
-    icon: <Calendar className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
-  { 
-    label: 'Rapports', 
-    href: '/administration/reports', 
-    icon: <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />,
-    roles: ['ADMIN', 'MANAGER']
-  },
-  { 
-    label: 'Support', 
-    href: '/administration/support', 
-    icon: <MessageSquare className="h-4 w-4 md:h-5 md:w-5" /> 
-  },
+// Nouvelle structure de menu : plate avec des séparateurs de type 'header'
+const menuItems: ({
+    type: 'link';
+    name: string;
+    href: string;
+    icon: React.ReactElement<LucideIcon>;
+    roles?: Role[];
+} | {
+    type: 'header';
+    name: string;
+    roles?: Role[];
+})[] = [
+    { type: 'link', name: 'Tableau de Bord', href: '/administration', icon: <LayoutDashboard size={18} /> },
+    { type: 'header', name: 'Opérations', roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Planning', href: '/administration/planning', icon: <Calendar size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Suivi Temps Réel', href: '/administration/tracking', icon: <MapPin size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Missions', href: '/administration/missions', icon: <Briefcase size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'header', name: 'Ventes & CRM', roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Prospects', href: '/administration/leads', icon: <Contact size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Clients', href: '/administration/clients', icon: <Users size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Devis', href: '/administration/quotes', icon: <FileText size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'header', name: 'Finance & Achats', roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { type: 'link', name: 'Factures', href: '/administration/invoices', icon: <Receipt size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { type: 'link', name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { type: 'link', name: 'Fournisseurs', href: '/administration/suppliers', icon: <ShoppingBag size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { type: 'link', name: 'Reporting', href: '/administration/reporting', icon: <Download size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { type: 'header', name: 'Ressources', roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Employés', href: '/administration/employees', icon: <Users2 size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Paie', href: '/administration/payroll', icon: <CreditCard size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', 'name': 'Équipements', href: '/administration/equipments', icon: <Wrench size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Produits', href: '/administration/products', icon: <Warehouse size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Sous-traitants', href: '/administration/subcontractors', icon: <Handshake size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { type: 'link', name: 'Bons de Livraison', href: '/administration/delivery-notes', icon: <Truck size={18} />, roles: ['ADMIN', 'MANAGER'] },
 ];
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) {
+const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   const pathname = usePathname();
-  const trigger = useRef<HTMLButtonElement>(null);
   const sidebar = useRef<HTMLDivElement>(null);
 
+  // Gère la fermeture de la sidebar en cliquant à l'extérieur sur mobile
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
-      if (!sidebar.current || !trigger.current) return;
-      if (!sidebarOpen || sidebar.current.contains(target as Node) || trigger.current.contains(target as Node)) return;
+      if (!sidebar.current || !sidebarOpen || sidebar.current.contains(target as Node)) return;
       setSidebarOpen(false);
     };
-    document.addEventListener('click', clickHandler);
-    return () => document.removeEventListener('click', clickHandler);
-  });
-
-  useEffect(() => {
-    const keyHandler = ({ keyCode }: KeyboardEvent) => {
-      if (!sidebarOpen || keyCode !== 27) return;
-      setSidebarOpen(false);
-    };
-    document.addEventListener('keydown', keyHandler);
-    return () => document.removeEventListener('keydown', keyHandler);
-  });
-
-  const filteredMenuItems = menuItems.filter(item => 
-    !item.roles || item.roles.includes(userRole || '')
-  );
+    document.addEventListener("click", clickHandler);
+    return () => document.removeEventListener("click", clickHandler);
+  }, [sidebarOpen, setSidebarOpen]);
 
   return (
     <>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" aria-hidden="true">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75"></div>
-        </div>
-      )}
-
-      {/* Sidebar */}
+      {/* Overlay pour la vue mobile */}
       <div
+        className={cn(
+          "fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden",
+          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setSidebarOpen(false)}
+      ></div>
+
+      <aside
         ref={sidebar}
-        className={`fixed left-0 top-0 z-50 h-screen w-64 lg:w-72 bg-white dark:bg-boxdark border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 lg:static lg:inset-0`}
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
+          "lg:static lg:translate-x-0", // La sidebar est toujours visible et de taille fixe sur desktop
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 lg:px-6 py-4 lg:py-5 border-b border-gray-200 dark:border-gray-700">
-          <Link href="/administration" className="flex items-center">
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xs lg:text-sm">E</span>
-              </div>
-              <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">Enarva</span>
-            </div>
+        {/* Logo */}
+        <div className="flex h-20 items-center justify-center px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
+          <Link href="/administration">
+            <Image className="dark:hidden" width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
+            <Image className="hidden dark:block" width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
           </Link>
-          
-          <button
-            ref={trigger}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-1"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-4 lg:mt-6 px-2 lg:px-3 h-full overflow-y-auto pb-20">
-          <div className="space-y-1">
-            {filteredMenuItems.map((item, index) => {
-              const isActive = pathname === item.href;
+        {/* Liens de navigation */}
+        <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto">
+          <nav className="flex-1 mt-4 px-4 space-y-1">
+            {menuItems.map((item, index) => {
+              // Vérification des rôles
+              if (item.roles && userRole && !item.roles.includes(userRole)) {
+                return null;
+              }
+
+              // Affiche un titre de section
+              if (item.type === 'header') {
+                return (
+                  <h3 key={index} className="px-3 pt-4 pb-1 text-xs font-semibold uppercase text-gray-400 dark:text-dark-subtle">
+                    {item.name}
+                  </h3>
+                );
+              }
+              
+              // Affiche un lien
+              const isActive = pathname === item.href || (item.href !== '/administration' && pathname.startsWith(item.href));
+              
               return (
                 <Link
                   key={index}
                   href={item.href}
-                  className={`group flex items-center px-2 lg:px-3 py-2 lg:py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                  onClick={() => sidebarOpen && setSidebarOpen(false)} // Ferme la sidebar sur clic mobile
+                  className={cn(
+                    "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
                     isActive
-                      ? 'bg-blue-50 border-r-4 border-blue-500 text-blue-700 dark:bg-blue-900/50 dark:text-blue-200'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className={`mr-2 lg:mr-3 flex-shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'}`}>
-                    {item.icon}
-                  </span>
-                  <span className="truncate">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto inline-block py-0.5 px-2 text-xs bg-red-100 text-red-600 rounded-full">
-                      {item.badge}
-                    </span>
+                      ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
                   )}
+                >
+                  {item.icon}
+                  <span className="whitespace-nowrap">{item.name}</span>
                 </Link>
               );
             })}
-          </div>
           </nav>
 
-       {/* Footer */}
-       <div className="absolute bottom-0 left-0 right-0 p-3 lg:p-4 border-t border-gray-200 dark:border-gray-700">
-         <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-           Enarva SARL AU v2.0
-         </div>
-       </div>
-     </div>
-   </>
- );
-}
+          {/* Section Réglages et Déconnexion en bas */}
+          <div className="mt-auto p-4 space-y-2 border-t border-gray-100 dark:border-dark-border">
+             <Link
+                href="/administration/settings"
+                className={cn(
+                    "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
+                    pathname.startsWith('/administration/settings')
+                      ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
+                )}
+             >
+                <Settings size={18} />
+                <span>Réglages</span>
+             </Link>
+             <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                className="group flex w-full items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
+             >
+                <LogOut size={18} />
+                <span>Déconnexion</span>
+             </button>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+};
+
+export default Sidebar;

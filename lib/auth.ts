@@ -1,10 +1,10 @@
-// lib/auth.ts
 import { AuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import prisma from "@/lib/prisma";
 import { Role } from "@prisma/client";
+import { getServerSession } from "next-auth";
 
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -77,6 +77,28 @@ export const authOptions: AuthOptions = {
     signIn: '/login',
   },
 };
+
+// Fonctions utilitaires session
+export async function getCurrentUser() {
+    const session = await getServerSession(authOptions);
+    return session?.user || null;
+}
+
+export async function requireAuth() {
+    const user = await getCurrentUser();
+    if (!user) {
+        throw new Error('Authentication required');
+    }
+    return user;
+}
+
+export async function requireRole(allowedRoles: string[]) {
+    const user = await requireAuth();
+    if (!allowedRoles.includes(user.role)) {
+        throw new Error(`Access denied. Required roles: ${allowedRoles.join(', ')}`);
+    }
+    return user;
+}
 
 declare module "next-auth" {
     interface Session {

@@ -1,159 +1,424 @@
 // app/administration/page.tsx
 import { Suspense } from 'react';
-import { FileText, Briefcase, Users, Euro, Wallet } from 'lucide-react';
+import { 
+    Euro, 
+    FileText, 
+    Wallet, 
+    Briefcase, 
+    Users, 
+    TrendingUp,
+    Package,
+    AlertCircle,
+    CheckCircle2,
+    Clock
+} from 'lucide-react';
 import { WelcomeBanner } from './components/dashboard/WelcomeBanner';
 import { MetricCard } from './components/dashboard/MetricCard';
 import { ActivityFeed } from './components/dashboard/ActivityFeed';
 import { RecentDocumentsList } from './components/dashboard/RecentDocumentsList';
+import { ExpensesList } from './components/dashboard/ExpensesList';
+import { TeamOverview } from './components/dashboard/TeamOverview';
+import { TasksWidget } from './components/dashboard/TasksWidget';
+import { QuickActions } from './components/dashboard/QuickActions';
+import prisma from '@/lib/prisma';
 
-// Types pour les données récupérées
-interface DashboardData {
-    commercial: { monthlyRevenue: number; unpaidInvoicesAmount: number; };
-    operational: { ongoingMissions: number; totalEmployees: number; };
-    recentQuotes: any[];
-    recentInvoices: any[];
-    monthlyExpenses: number;
-}
+// Fonction pour récupérer toutes les données du dashboard
+async function getDashboardData() {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999));
 
-// 🔧 CORRECTION: Fonction pour récupérer les données via API avec fallback
-async function getDashboardData(): Promise<DashboardData> {
-    try {
-        // 🔧 CORRECTION: URL absolue pour Vercel
-        const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : process.env.NEXTAUTH_URL || 'http://localhost:3000';
-            
-        console.log("🔍 Fetching dashboard data from:", `${baseUrl}/api/dashboard/metrics`);
+    const [
+        monthlyRevenue,
+        unpaidInvoices,
+        monthlyExpenses,
+        ongoingMissions,
+        recentQuotes,
+        recentInvoices,
+        recentExpenses,
+        teamMembers,
+        completedMissionsToday,
+        recentLeads,
+        activeContracts
+    ] = await Promise.all([
+        // Revenu mensuel (factures payées)
+        prisma.invoice.aggregate({
+            where: {
+                status: 'PAID',
+                date: { gte: firstDayOfMonth, lte: lastDayOfMonth }
+            },
+            _sum: { totalTTC: true }
+        }),
         
-        const res = await fetch(`${baseUrl}/api/dashboard/metrics`, { 
-            cache: 'no-store',
-            headers: {
-                'Content-Type': 'application/json',
+        // Factures impayées
+        prisma.invoice.aggregate({
+            where: { 
+                status: { 
+                    in: ['SENT', 'LATE'] 
+                } 
+            },
+            _sum: { totalTTC: true },
+            _count: true
+        }),
+        
+        // Dépenses mensuelles
+        prisma.expense.aggregate({
+            where: {
+                date: { gte: firstDayOfMonth, lte: lastDayOfMonth }
+            },
+            _sum: { amount: true }
+        }),
+        
+        // Missions en cours
+        prisma.mission.count({
+            where: { 
+                status: { 
+                    in: ['PENDING', 'IN_PROGRESS'] 
+                } 
             }
-        });
+        }),
         
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
+        // 5 derniers devis
+        prisma.quote.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { 
+                client: { 
+                    select: { nom: true } 
+                } 
+            }
+        }),
+        
+        // 5 dernières factures
+        prisma.invoice.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { 
+                client: { 
+                    select: { nom: true } 
+                } 
+            }
+        }),
+        
+        // 5 dernières dépenses
+        prisma.expense.findMany({
+            orderBy: { date: 'desc' },
+            take: 5,
+            include: { 
+                supplier: { 
+                    select: { name: true } 
+                }
+            }
+        }),
+        
+        // Membres de l'équipe (employés)
+        prisma.employee.findMany({
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        email: true,
+                        image: true,
+                        isOnline: true,
+                        lastSeen: true,
+                        currentLatitude: true,
+                        currentLongitude: true
+                    }
+                },
+                missions: {
+                    where: {
+                        scheduledStart: { lte: endOfToday },
+                        scheduledEnd: { gte: startOfToday },
+                        status: { in: ['IN_PROGRESS', 'PENDING'] }
+                    }
+                }
+            }
+        }),
+        
+        // Missions complétées aujourd'hui
+        prisma.mission.count({
+            where: {
+                status: 'COMPLETED',
+                actualEnd: {
+                    gte: startOfToday,
+                    lte: endOfToday
+                }
+            }
+        }),
+        
+        // Leads récents
+        prisma.lead.findMany({
+            orderBy: { date_creation: 'desc' },
+            take: 5,
+            include: {
+                assignedTo: {
+                    select: { name: true }
+                }
+            }
+        }),
+        
+        // Contrats actifs
+        prisma.contrat.count({
+            where: {
+                dateFin: { gte: today }
+            }
+        })
+    ]);
+
+    // Calcul des tâches en attente (basé sur les missions)
+    const pendingTasks = await prisma.mission.findMany({
+        where: {
+            status: { in: ['PENDING', 'IN_PROGRESS'] },
+            scheduledEnd: { gte: today }
+        },
+        orderBy: { scheduledEnd: 'asc' },
+        take: 5,
+        include: {
+            assignedTo: {
+                include: {
+                    user: { select: { name: true } }
+                }
+            },
+            order: {
+                include: {
+                    client: { select: { nom: true } }
+                }
+            }
         }
-        
-        const data = await res.json();
-        console.log("✅ Dashboard data loaded successfully:", {
-            quotesCount: data.recentQuotes?.length || 0,
-            invoicesCount: data.recentInvoices?.length || 0
-        });
-        
-        return data;
-    } catch (error) {
-        console.error("❌ Dashboard data fetching error:", error);
-        // 🔧 AMÉLIORATION: Retourner des données par défaut
-        return {
-            commercial: { monthlyRevenue: 0, unpaidInvoicesAmount: 0 },
-            operational: { ongoingMissions: 0, totalEmployees: 0 },
-            recentQuotes: [],
-            recentInvoices: [],
-            monthlyExpenses: 0,
-        };
-    }
+    });
+
+    return {
+        metrics: {
+            monthlyRevenue: monthlyRevenue._sum.totalTTC || 0,
+            unpaidInvoicesAmount: unpaidInvoices._sum.totalTTC || 0,
+            unpaidInvoicesCount: unpaidInvoices._count || 0,
+            monthlyExpenses: monthlyExpenses._sum.amount || 0,
+            ongoingMissions,
+            completedMissionsToday,
+            activeContracts
+        },
+        recentQuotes,
+        recentInvoices,
+        recentExpenses,
+        teamMembers,
+        pendingTasks: pendingTasks.map(task => ({
+            id: task.id,
+            title: task.title || `Mission ${task.workOrderNumber || task.id.slice(-6)}`,
+            description: task.notes,
+            status: task.status === 'PENDING' ? 'TODO' : 'IN_PROGRESS',
+            priority: 'MEDIUM',
+            dueDate: task.scheduledEnd,
+            assignedTo: task.assignedTo?.user
+        })),
+        recentLeads
+    };
 }
 
-const formatCurrency = (amount: number) => new Intl.NumberFormat('fr-MA', { 
-    style: 'currency', 
-    currency: 'MAD' 
-}).format(amount);
+const formatCurrency = (amount: number) => 
+    new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(amount);
 
-// Composant principal du contenu du tableau de bord
+// Composant principal du dashboard
 async function DashboardContent() {
     const data = await getDashboardData();
     
     return (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-            {/* Colonne principale (plus large) */}
-            <div className="xl:col-span-3 space-y-6">
-                <WelcomeBanner />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <MetricCard 
-                        title="Revenu Mensuel" 
-                        value={formatCurrency(data.commercial.monthlyRevenue)} 
-                        icon={<Euro size={20} />} 
-                        color="green" 
-                    />
-                    <MetricCard 
-                        title="Factures Impayées" 
-                        value={formatCurrency(data.commercial.unpaidInvoicesAmount)} 
-                        icon={<FileText size={20} />} 
-                        color="yellow" 
-                    />
-                    <MetricCard 
-                        title="Dépenses du Mois" 
-                        value={formatCurrency(data.monthlyExpenses)} 
-                        icon={<Wallet size={20} />} 
-                        color="purple" 
-                    />
-                    <MetricCard 
-                        title="Missions en Cours" 
-                        value={data.operational.ongoingMissions} 
-                        icon={<Briefcase size={20} />} 
-                        color="blue" 
-                    />
-                </div>
-
-                {/* 📋 SECTION DOCUMENTS RÉCENTS */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <RecentDocumentsList 
-                        title="Devis Récents"
-                        items={data.recentQuotes.map(q => ({ 
-                            id: q.id, 
-                            number: q.quoteNumber, 
-                            clientName: q.client?.nom || 'Client inconnu',
-                            amount: q.totalTTC, 
-                            status: q.status 
-                        }))}
-                        viewAllLink="/administration/quotes"
-                        type="quote"
-                    />
-                    <RecentDocumentsList 
-                        title="Factures Récentes"
-                        items={data.recentInvoices.map(i => ({ 
-                            id: i.id, 
-                            number: i.invoiceNumber, 
-                            clientName: i.client?.nom || 'Client inconnu',
-                            amount: i.totalTTC, 
-                            status: i.status 
-                        }))}
-                        viewAllLink="/administration/invoices"
-                        type="invoice"
-                    />
-                </div>
+        <div className="space-y-6">
+            {/* Banner de bienvenue */}
+            <WelcomeBanner />
+            
+            {/* Métriques principales - Responsive grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                <MetricCard 
+                    title="Revenu Mensuel" 
+                    value={formatCurrency(data.metrics.monthlyRevenue)} 
+                    icon={<TrendingUp size={20} />} 
+                    color="green"
+                    className="col-span-1" 
+                />
+                <MetricCard 
+                    title="Factures Impayées" 
+                    value={formatCurrency(data.metrics.unpaidInvoicesAmount)} 
+                    subtitle={`${data.metrics.unpaidInvoicesCount} factures`}
+                    icon={<AlertCircle size={20} />} 
+                    color="yellow"
+                    className="col-span-1" 
+                />
+                <MetricCard 
+                    title="Dépenses du Mois" 
+                    value={formatCurrency(data.metrics.monthlyExpenses)} 
+                    icon={<Wallet size={20} />} 
+                    color="purple"
+                    className="col-span-1" 
+                />
+                <MetricCard 
+                    title="Missions en Cours" 
+                    value={data.metrics.ongoingMissions.toString()} 
+                    icon={<Briefcase size={20} />} 
+                    color="blue"
+                    className="col-span-1" 
+                />
+                <MetricCard 
+                    title="Équipe Active" 
+                    value={data.teamMembers.length.toString()} 
+                    icon={<Users size={20} />} 
+                    color="indigo"
+                    className="col-span-1" 
+                />
+                <MetricCard 
+                    title="Complétées Aujourd'hui" 
+                    value={data.metrics.completedMissionsToday.toString()} 
+                    icon={<CheckCircle2 size={20} />} 
+                    color="emerald"
+                    className="col-span-1" 
+                />
             </div>
 
-            {/* Colonne latérale (plus étroite) */}
-            <div className="xl:col-span-1">
-                <ActivityFeed />
+            {/* Actions rapides - Mobile first */}
+            <QuickActions />
+
+            {/* Section principale avec layout responsive */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Colonne principale (2/3 sur desktop) */}
+                <div className="xl:col-span-2 space-y-6">
+                    {/* Documents récents en grille responsive */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                        <RecentDocumentsList 
+                            title="Devis Récents"
+                            items={data.recentQuotes.map(q => ({ 
+                                id: q.id, 
+                                number: q.quoteNumber, 
+                                clientName: q.client.nom, 
+                                amount: q.totalTTC, 
+                                status: q.status,
+                                date: q.createdAt
+                            }))}
+                            viewAllLink="/administration/quotes"
+                            type="quote"
+                        />
+                        <RecentDocumentsList 
+                            title="Factures Récentes"
+                            items={data.recentInvoices.map(i => ({ 
+                                id: i.id, 
+                                number: i.invoiceNumber, 
+                                clientName: i.client.nom, 
+                                amount: i.totalTTC, 
+                                status: i.status,
+                                date: i.date
+                            }))}
+                            viewAllLink="/administration/invoices"
+                            type="invoice"
+                        />
+                    </div>
+
+                    {/* Widgets additionnels */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                        <ExpensesList 
+                            expenses={data.recentExpenses.map(e => ({
+                                id: e.id,
+                                description: e.description,
+                                amount: e.amount,
+                                date: e.date,
+                                status: 'APPROVED',
+                                category: { name: e.category },
+                                supplier: e.supplier
+                            }))}
+                            viewAllLink="/administration/expenses"
+                        />
+                        <TasksWidget 
+                            tasks={data.pendingTasks}
+                            viewAllLink="/administration/missions"
+                        />
+                    </div>
+
+                    {/* Vue d'équipe */}
+                    <TeamOverview 
+                        teamMembers={data.teamMembers.map(member => ({
+                            id: member.id,
+                            name: member.user.name,
+                            email: member.user.email,
+                            phone: member.phone,
+                            status: 'ACTIVE',
+                            image: member.user.image,
+                            missions: member.missions,
+                            currentLatitude: member.user.currentLatitude,
+                            currentLongitude: member.user.currentLongitude,
+                            lastSeen: member.user.lastSeen,
+                            isOnline: member.user.isOnline
+                        }))}
+                        viewAllLink="/administration/employees"
+                    />
+
+                    {/* Section Leads récents */}
+                    <div className="bg-white dark:bg-dark-container p-4 sm:p-6 rounded-2xl shadow-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Leads Récents</h3>
+                            <a href="/administration/leads" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                                Voir tout →
+                            </a>
+                        </div>
+                        <div className="space-y-3">
+                            {data.recentLeads.map(lead => (
+                                <div key={lead.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-dark-surface rounded-lg">
+                                    <div>
+                                        <p className="font-semibold text-gray-800 dark:text-dark-text">{lead.nom}</p>
+                                        <p className="text-xs text-gray-500 dark:text-dark-subtle">
+                                            {lead.canal} • {lead.assignedTo?.name || 'Non assigné'}
+                                        </p>
+                                    </div>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${
+                                        lead.statut === 'new_lead' ? 'bg-blue-100 text-blue-800' :
+                                        lead.statut === 'qualified' ? 'bg-green-100 text-green-800' :
+                                        'bg-gray-100 text-gray-800'
+                                    }`}>
+                                        {lead.statut.replace('_', ' ')}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Colonne latérale (1/3 sur desktop) */}
+                <div className="xl:col-span-1">
+                    <ActivityFeed />
+                </div>
             </div>
         </div>
     );
 }
 
-// Page principale
+// Page principale avec Suspense pour le chargement
 export default function DashboardPage() {
     return (
+        <Suspense fallback={<DashboardSkeleton />}>
+            <DashboardContent />
+        </Suspense>
+    );
+}
+
+// Skeleton pour le chargement
+function DashboardSkeleton() {
+    return (
         <div className="space-y-6">
-             <Suspense fallback={
-                 <div className="animate-pulse space-y-6">
-                    <div className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
-                        ))}
+            <div className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl animate-pulse" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-24 bg-gray-200 dark:bg-dark-surface rounded-2xl animate-pulse" />
+                ))}
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2 space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl animate-pulse" />
+                        <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl animate-pulse" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
-                         <div className="h-80 bg-gray-200 dark:bg-dark-surface rounded-2xl"></div>
-                    </div>
-                 </div>
-             }>
-                <DashboardContent />
-             </Suspense>
+                </div>
+                <div className="xl:col-span-1">
+                    <div className="h-96 bg-gray-200 dark:bg-dark-surface rounded-2xl animate-pulse" />
+                </div>
+            </div>
         </div>
     );
 }

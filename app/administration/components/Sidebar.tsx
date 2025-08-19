@@ -21,7 +21,6 @@ interface SidebarProps {
   userRole?: Role;
 }
 
-// Liste de menu complète et réorganisée
 const menuItems: {
     name: string;
     href: string;
@@ -77,15 +76,18 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, isCollapsed, setIsCollapsed, use
       >
         <div className="flex h-20 items-center justify-center px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
           <Link href="/administration">
+            {/* Logo pour la sidebar étendue (non visible quand réduite) */}
             <div className={cn("dark:hidden", isCollapsed ? "lg:hidden" : "block")}>
-                <Image width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
+                <Image width={120} height={35} src="/images/light-logo.png" alt="Enarva Logo" priority />
             </div>
             <div className={cn("hidden dark:block", isCollapsed ? "lg:hidden" : "block")}>
-                <Image width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
+                <Image width={120} height={35} src="/images/dark-logo.png" alt="Enarva Logo" priority />
             </div>
+            
+            {/* Logo pour la sidebar réduite (visible seulement quand réduite sur desktop) */}
             <div className={cn("hidden", isCollapsed && "lg:block")}>
-                <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Icon" />
-                <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
+                <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Enarva Icon" />
+                <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Enarva Icon" />
             </div>
           </Link>
         </div>

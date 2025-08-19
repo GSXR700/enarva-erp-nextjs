@@ -78,11 +78,11 @@ export default function LoginForm() {
           <Image
             src={theme === 'light' ? "/images/light-logo.png" : "/images/dark-logo.png"}
             alt="Enarva Logo"
-            width={40}
-            height={40}
+            width={60}
+            height={60}
             className="mb-3"
           />
-          <span className="text-3xl font-bold text-gray-800 dark:text-dark-text">
+          <span className="text-3xl font-semibold text-gray-800 dark:text-dark-text">
             Workspace
           </span>
         </div>

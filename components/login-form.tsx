@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Eye, EyeOff, AlertCircle } from "lucide-react"
+import { Eye, EyeOff, AlertCircle, Sun, Moon } from "lucide-react"
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -14,7 +14,35 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [theme, setTheme] = useState('light');
   const router = useRouter();
+  
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  // Gère le thème au chargement
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    if (emailInputRef.current) {
+      emailInputRef.current.focus();
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,33 +54,39 @@ export default function LoginForm() {
       email,
       password,
     });
-
-    setIsLoading(false);
-
+    
     if (result?.error) {
       setError("Email ou mot de passe incorrect.");
+      setIsLoading(false);
     } else if (result?.ok) {
       router.push("/administration");
     }
   };
 
   return (
-    <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-xl shadow-2xl border border-gray-100">
+    <div className="w-full max-w-md bg-white dark:bg-dark-surface p-8 md:p-10 rounded-xl shadow-2xl border border-gray-100 dark:border-dark-border relative">
+      <button 
+        onClick={toggleTheme} 
+        className="absolute top-4 right-4 p-2 rounded-full text-gray-500 dark:text-dark-subtle hover:bg-gray-100 dark:hover:bg-dark-highlight-bg transition-colors"
+        aria-label="Toggle theme"
+      >
+        {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+      </button>
+
       <div className="text-center mb-8">
-        <div className="flex flex-col justify-center items-center mb-2">
+        <div className="flex flex-col justify-center items-center mb-4">
           <Image
-            src="/images/light-logo.png" // Assurez-vous que le chemin vers votre logo est correct
+            src={theme === 'light' ? "/images/light-logo.png" : "/images/dark-logo.png"}
             alt="Enarva Logo"
-            width={32}
-            height={32}
-            className="mb-2"
+            width={40}
+            height={40}
+            className="mb-3"
           />
-          <span className="text-2xl text-[#5f6368]" style={{ fontWeight: 400 }}>
+          <span className="text-3xl font-bold text-gray-800 dark:text-dark-text">
             Workspace
           </span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-800">Connexion</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <p className="text-gray-500 dark:text-dark-subtle text-sm mt-1">
           Entrez vos identifiants pour accéder à votre espace.
         </p>
       </div>
@@ -65,10 +99,11 @@ export default function LoginForm() {
           </div>
         )}
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-gray-700">
+          <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-dark-subtle">
             Email
           </label>
           <input
+            ref={emailInputRef}
             id="email"
             placeholder="nom@exemple.com"
             type="email"
@@ -76,13 +111,13 @@ export default function LoginForm() {
             disabled={isLoading}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg bg-gray-100 border-transparent focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 transition"
+            className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-dark-container border-gray-200 dark:border-dark-border focus:border-primary dark:focus:border-primary focus:ring-1 focus:ring-primary dark:text-dark-text transition"
           />
         </div>
         <div className="space-y-2">
           <label
             htmlFor="password"
-            className="text-sm font-medium text-gray-700"
+            className="text-sm font-medium text-gray-700 dark:text-dark-subtle"
           >
             Mot de passe
           </label>
@@ -94,7 +129,7 @@ export default function LoginForm() {
               disabled={isLoading}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg bg-gray-100 border-transparent focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 transition pr-10"
+              className="w-full px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-dark-container border-gray-200 dark:border-dark-border focus:border-primary dark:focus:border-primary focus:ring-1 focus:ring-primary dark:text-dark-text transition pr-10"
             />
             <button
               type="button"
@@ -103,9 +138,9 @@ export default function LoginForm() {
               disabled={isLoading}
             >
               {showPassword ? (
-                <EyeOff className="h-5 w-5 text-gray-400" />
+                <EyeOff className="h-5 w-5 text-gray-400 dark:text-dark-subtle" />
               ) : (
-                <Eye className="h-5 w-5 text-gray-400" />
+                <Eye className="h-5 w-5 text-gray-400 dark:text-dark-subtle" />
               )}
               <span className="sr-only">Afficher/Cacher le mot de passe</span>
             </button>
@@ -114,20 +149,28 @@ export default function LoginForm() {
         <div className="flex items-center justify-end">
           <Link
             href="/forgot-password"
-            className="text-sm text-gray-500 hover:text-blue-600 font-medium"
+            className="text-sm text-gray-500 hover:text-primary dark:text-dark-subtle dark:hover:text-primary font-medium"
           >
             Mot de passe oublié ?
           </Link>
         </div>
         <button
-          className="w-full text-white font-semibold py-3 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full text-white font-semibold py-3 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
           type="submit"
           disabled={isLoading}
           style={{
             backgroundImage: "linear-gradient(to right, #267df4, #2155c9)",
           }}
         >
-          {isLoading ? "Connexion en cours..." : "Se connecter"}
+          <span className="relative z-10">
+            {isLoading ? "Connexion en cours..." : "Se connecter"}
+          </span>
+          {isLoading && (
+            <span 
+              className="absolute inset-0 bg-white/30 animate-wipe"
+              style={{ transform: 'skewX(-20deg)' }}
+            />
+          )}
         </button>
       </form>
     </div>

@@ -1,34 +1,52 @@
-// middleware.ts
-import { withAuth, NextRequestWithAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
+import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { Role } from "@prisma/client";
 
 export default withAuth(
-    function middleware(request: NextRequestWithAuth) {
-        const { token } = request.nextauth;
-        const { pathname } = request.nextUrl;
+  async function middleware(req) {
+    const token = await getToken({ req });
+    const isAuthenticated = !!token;
+    const userRole = token?.role as Role;
 
-        // Si un employé de terrain essaie d'accéder à l'admin, on le redirige
-        if (pathname.startsWith('/administration') && token?.role === 'FIELD_WORKER') {
-            return NextResponse.redirect(new URL('/mobile', request.url));
-        }
+    const { pathname } = req.nextUrl;
 
-        // Si un admin essaie d'accéder à l'app mobile, on le redirige
-        if (pathname.startsWith('/mobile') && token?.role === 'ADMIN') {
-            return NextResponse.redirect(new URL('/administration', request.url));
-        }
-    },
-    {
-        callbacks: {
-            // Renvoie true si le token existe (utilisateur connecté)
-            authorized: ({ token }) => !!token
-        },
-        pages: {
-            signIn: "/login", // Page de connexion
-        },
+    // Si l'utilisateur est authentifié
+    if (isAuthenticated) {
+      // Si un utilisateur NON employé tente d'accéder à la page mobile,
+      // on le redirige vers sa page d'administration.
+      if (pathname.startsWith("/mobile") && userRole !== Role.FIELD_WORKER) {
+        return NextResponse.redirect(new URL("/administration", req.url));
+      }
+
+      // Si un employé tente d'accéder à l'administration,
+      // on le redirige vers sa page mobile.
+      if (pathname.startsWith("/administration") && userRole === Role.FIELD_WORKER) {
+        return NextResponse.redirect(new URL("/mobile", req.url));
+      }
+
+      // Si un utilisateur authentifié tente d'accéder à la page de connexion,
+      // on le redirige vers la page appropriée en fonction de son rôle.
+      if (pathname.startsWith("/login")) {
+        const redirectUrl = userRole === Role.FIELD_WORKER ? "/mobile" : "/administration";
+        return NextResponse.redirect(new URL(redirectUrl, req.url));
+      }
     }
+
+    // Si l'utilisateur n'est pas authentifié et tente d'accéder à une page protégée
+    if (!isAuthenticated && (pathname.startsWith("/administration") || pathname.startsWith("/mobile"))) {
+        return NextResponse.redirect(new URL("/login", req.url));
+    }
+
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: () => true, // Le middleware s'exécute sur chaque requête
+    },
+  }
 );
 
-// Le matcher spécifie que ce middleware s'applique à ces routes
 export const config = {
-  matcher: ["/administration/:path*", "/mobile"],
+  matcher: ["/administration/:path*", "/mobile/:path*", "/login"],
 };

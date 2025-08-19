@@ -68,7 +68,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, isCollapsed, setIsCollapsed, use
         onMouseEnter={() => window.innerWidth > 1024 && setIsCollapsed(false)}
         onMouseLeave={() => window.innerWidth > 1024 && setIsCollapsed(true)}
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
+          "fixed left-0 top-0 z-40 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0",
           isCollapsed ? "lg:w-20" : "lg:w-72"
@@ -76,15 +76,12 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, isCollapsed, setIsCollapsed, use
       >
         <div className="flex h-20 items-center justify-center px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
           <Link href="/administration">
-            {/* Logo pour la sidebar étendue (non visible quand réduite) */}
             <div className={cn("dark:hidden", isCollapsed ? "lg:hidden" : "block")}>
                 <Image width={120} height={35} src="/images/light-logo.png" alt="Enarva Logo" priority />
             </div>
             <div className={cn("hidden dark:block", isCollapsed ? "lg:hidden" : "block")}>
                 <Image width={120} height={35} src="/images/dark-logo.png" alt="Enarva Logo" priority />
             </div>
-            
-            {/* Logo pour la sidebar réduite (visible seulement quand réduite sur desktop) */}
             <div className={cn("hidden", isCollapsed && "lg:block")}>
                 <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Enarva Icon" />
                 <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Enarva Icon" />

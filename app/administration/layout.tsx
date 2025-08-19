@@ -16,7 +16,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true); // État initial : réduite
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const { data: session, status } = useSession();
 
   if (status === "loading") {
@@ -37,8 +37,7 @@ export default function AdminLayout({
           />
           <div className={cn(
             "relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out",
-            // Applique la marge à gauche pour laisser la place à la sidebar
-            "lg:ml-20"
+            "lg:ml-20" // Marge fixe pour la sidebar réduite
           )}>
             <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             <main>

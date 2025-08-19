@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, FileText, Receipt, Settings, Briefcase,
   Calendar, Warehouse, Users2, CreditCard, Download, Wallet, MapPin, Truck,
-  ShoppingBag, Handshake, Wrench, LucideIcon, Contact, LogOut
+  ShoppingBag, Handshake, Wrench, LucideIcon, Contact, LogOut, ChevronLeft
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -19,46 +19,32 @@ interface SidebarProps {
   userRole?: Role;
 }
 
-// Nouvelle structure de menu : plate avec des séparateurs de type 'header'
-const menuItems: ({
-    type: 'link';
+const menuItems: {
     name: string;
     href: string;
     icon: React.ReactElement<LucideIcon>;
     roles?: Role[];
-} | {
-    type: 'header';
-    name: string;
-    roles?: Role[];
-})[] = [
-    { type: 'link', name: 'Tableau de Bord', href: '/administration', icon: <LayoutDashboard size={18} /> },
-    { type: 'header', name: 'Opérations', roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Planning', href: '/administration/planning', icon: <Calendar size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Suivi Temps Réel', href: '/administration/tracking', icon: <MapPin size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Missions', href: '/administration/missions', icon: <Briefcase size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'header', name: 'Ventes & CRM', roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Prospects', href: '/administration/leads', icon: <Contact size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Clients', href: '/administration/clients', icon: <Users size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Devis', href: '/administration/quotes', icon: <FileText size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'header', name: 'Finance & Achats', roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
-    { type: 'link', name: 'Factures', href: '/administration/invoices', icon: <Receipt size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
-    { type: 'link', name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
-    { type: 'link', name: 'Fournisseurs', href: '/administration/suppliers', icon: <ShoppingBag size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
-    { type: 'link', name: 'Reporting', href: '/administration/reporting', icon: <Download size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
-    { type: 'header', name: 'Ressources', roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Employés', href: '/administration/employees', icon: <Users2 size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Paie', href: '/administration/payroll', icon: <CreditCard size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', 'name': 'Équipements', href: '/administration/equipments', icon: <Wrench size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Produits', href: '/administration/products', icon: <Warehouse size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Sous-traitants', href: '/administration/subcontractors', icon: <Handshake size={18} />, roles: ['ADMIN', 'MANAGER'] },
-    { type: 'link', name: 'Bons de Livraison', href: '/administration/delivery-notes', icon: <Truck size={18} />, roles: ['ADMIN', 'MANAGER'] },
+}[] = [
+    { name: 'Tableau de Bord', href: '/administration', icon: <LayoutDashboard size={18} /> },
+    { name: 'Planning', href: '/administration/planning', icon: <Calendar size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Suivi', href: '/administration/tracking', icon: <MapPin size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Missions', href: '/administration/missions', icon: <Briefcase size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Prospects', href: '/administration/leads', icon: <Contact size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Clients', href: '/administration/clients', icon: <Users size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Devis', href: '/administration/quotes', icon: <FileText size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Factures', href: '/administration/invoices', icon: <Receipt size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { name: 'Dépenses', href: '/administration/expenses', icon: <Wallet size={18} />, roles: ['ADMIN', 'MANAGER', 'FINANCE'] },
+    { name: 'Employés', href: '/administration/employees', icon: <Users2 size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Paie', href: '/administration/payroll', icon: <CreditCard size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Équipements', href: '/administration/equipments', icon: <Wrench size={18} />, roles: ['ADMIN', 'MANAGER'] },
+    { name: 'Produits', href: '/administration/products', icon: <Warehouse size={18} />, roles: ['ADMIN', 'MANAGER'] },
 ];
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
   const pathname = usePathname();
   const sidebar = useRef<HTMLDivElement>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Gère la fermeture de la sidebar en cliquant à l'extérieur sur mobile
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
       if (!sidebar.current || !sidebarOpen || sidebar.current.contains(target as Node)) return;
@@ -70,7 +56,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
 
   return (
     <>
-      {/* Overlay pour la vue mobile */}
       <div
         className={cn(
           "fixed inset-0 bg-black bg-opacity-60 z-40 transition-opacity duration-200 lg:hidden",
@@ -82,60 +67,53 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
       <aside
         ref={sidebar}
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
-          "lg:static lg:translate-x-0", // La sidebar est toujours visible et de taille fixe sur desktop
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed left-0 top-0 z-50 flex h-screen flex-col overflow-y-hidden bg-white shadow-lg duration-300 ease-in-out dark:bg-dark-surface",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          // Logique pour le bureau
+          "lg:translate-x-0",
+          isCollapsed ? "lg:w-20" : "lg:w-72"
         )}
       >
-        {/* Logo */}
-        <div className="flex h-20 items-center justify-center px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
-          <Link href="/administration">
+        <div className="flex h-20 items-center justify-between px-6 shrink-0 border-b border-gray-100 dark:border-dark-border">
+          <Link href="/administration" className={cn(isCollapsed && "lg:hidden")}>
             <Image className="dark:hidden" width={120} height={35} src="/images/light-logo.png" alt="Logo" priority />
             <Image className="hidden dark:block" width={120} height={35} src="/images/dark-logo.png" alt="Logo" priority />
           </Link>
+          <Link href="/administration" className={cn("hidden", isCollapsed && "lg:block")}>
+             <Image className="dark:hidden" width={40} height={40} src="/images/light-mobile.PNG" alt="Icon" />
+             <Image className="hidden dark:block" width={40} height={40} src="/images/dark-mobile.png" alt="Icon" />
+          </Link>
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className={cn("hidden lg:block p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-border", isCollapsed && "rotate-180")}>
+            <ChevronLeft size={16} />
+          </button>
         </div>
 
-        {/* Liens de navigation */}
         <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto">
           <nav className="flex-1 mt-4 px-4 space-y-1">
             {menuItems.map((item, index) => {
-              // Vérification des rôles
-              if (item.roles && userRole && !item.roles.includes(userRole)) {
-                return null;
-              }
-
-              // Affiche un titre de section
-              if (item.type === 'header') {
-                return (
-                  <h3 key={index} className="px-3 pt-4 pb-1 text-xs font-semibold uppercase text-gray-400 dark:text-dark-subtle">
-                    {item.name}
-                  </h3>
-                );
-              }
-              
-              // Affiche un lien
+              if (item.roles && userRole && !item.roles.includes(userRole)) return null;
               const isActive = pathname === item.href || (item.href !== '/administration' && pathname.startsWith(item.href));
-              
               return (
                 <Link
                   key={index}
                   href={item.href}
-                  onClick={() => sidebarOpen && setSidebarOpen(false)} // Ferme la sidebar sur clic mobile
+                  onClick={() => sidebarOpen && setSidebarOpen(false)}
+                  title={isCollapsed ? item.name : ""}
                   className={cn(
                     "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
                     isActive
                       ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
+                    isCollapsed && "lg:justify-center"
                   )}
                 >
                   {item.icon}
-                  <span className="whitespace-nowrap">{item.name}</span>
+                  <span className={cn("whitespace-nowrap", isCollapsed && "lg:hidden")}>{item.name}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Section Réglages et Déconnexion en bas */}
           <div className="mt-auto p-4 space-y-2 border-t border-gray-100 dark:border-dark-border">
              <Link
                 href="/administration/settings"
@@ -143,18 +121,22 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen, userRole }: SidebarProps) => {
                     "group flex items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out",
                     pathname.startsWith('/administration/settings')
                       ? "bg-primary-light text-primary dark:bg-dark-highlight-bg dark:text-white"
-                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
+                    isCollapsed && "lg:justify-center"
                 )}
              >
                 <Settings size={18} />
-                <span>Réglages</span>
+                <span className={cn(isCollapsed && "lg:hidden")}>Réglages</span>
              </Link>
              <button
                 onClick={() => signOut({ callbackUrl: '/login' })}
-                className="group flex w-full items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg"
+                className={cn(
+                    "group flex w-full items-center gap-3 rounded-md p-3 text-sm font-medium duration-200 ease-in-out text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-highlight-bg",
+                    isCollapsed && "lg:justify-center"
+                )}
              >
                 <LogOut size={18} />
-                <span>Déconnexion</span>
+                <span className={cn(isCollapsed && "lg:hidden")}>Déconnexion</span>
              </button>
           </div>
         </div>

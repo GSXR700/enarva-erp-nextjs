@@ -1,32 +1,76 @@
-// app/administration/components/UserMenu.tsx
 "use client";
 
-import { SignOutButton } from "@/app/components/auth/SignOutButton";
-import { User, Settings, LogOut } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
+import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { UserAvatar } from "./UserAvatar";
 
-export function UserMenu() {
+export const UserMenu = () => {
+  const { data: session } = useSession();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Gère la fermeture du menu en cliquant à l'extérieur
+  useEffect(() => {
+    const clickHandler = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", clickHandler);
+    return () => document.removeEventListener("mousedown", clickHandler);
+  }, []);
+
+  if (!session) return null;
+
   return (
-    <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-dark-surface dark:ring-dark-border">
-      <div className="py-1">
-        <div className="px-4 py-2">
-            <p className="text-sm text-gray-700 dark:text-dark-text">Connecté en tant que</p>
-            <p className="text-sm font-medium text-gray-900 truncate dark:text-white">webmaster@enarva.com</p>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setDropdownOpen(!dropdownOpen)}
+        className="flex items-center gap-4"
+      >
+        <span className="hidden text-right lg:block">
+          <span className="block text-sm font-medium text-black dark:text-dark-text">
+            {session.user?.name}
+          </span>
+          <span className="block text-xs text-gray-500 dark:text-dark-subtle">
+            {session.user?.role}
+          </span>
+        </span>
+        <UserAvatar src={session.user?.image} name={session.user?.name} size={40} />
+        <ChevronDown className="hidden h-4 w-4 text-gray-500 lg:block" />
+      </button>
+
+      {/* Menu déroulant */}
+      {dropdownOpen && (
+        <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-dark-surface rounded-lg shadow-lg border border-gray-200 dark:border-dark-border z-50">
+          <div className="p-4 border-b border-gray-200 dark:border-dark-border">
+            <p className="font-semibold text-gray-800 dark:text-white">{session.user?.name}</p>
+            <p className="text-sm text-gray-500 dark:text-dark-subtle truncate">{session.user?.email}</p>
+          </div>
+          <div className="py-2">
+            <Link
+              href="/administration/settings"
+              onClick={() => setDropdownOpen(false)}
+              className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-dark-subtle hover:bg-gray-100 dark:hover:bg-dark-highlight-bg"
+            >
+              <Settings className="mr-3 h-4 w-4" />
+              <span>Réglages</span>
+            </Link>
+          </div>
+          <div className="border-t border-gray-200 dark:border-dark-border py-2">
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-dark-highlight-bg"
+            >
+              <LogOut className="mr-3 h-4 w-4" />
+              <span>Déconnexion</span>
+            </button>
+          </div>
         </div>
-        <div className="border-t border-gray-100 dark:border-dark-border"></div>
-        <Link href="#" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-dark-subtle dark:hover:bg-gray-700">
-            <User size={16} />
-            <span>Mon Profil</span>
-        </Link>
-        <Link href="/administration/settings" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-dark-subtle dark:hover:bg-gray-700">
-            <Settings size={16} />
-            <span>Réglages</span>
-        </Link>
-        <div className="border-t border-gray-100 dark:border-dark-border"></div>
-        <div className="px-4 py-2">
-            <SignOutButton />
-        </div>
-      </div>
+      )}
     </div>
   );
-}
+};

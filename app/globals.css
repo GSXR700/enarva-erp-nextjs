@@ -64,8 +64,6 @@
   scrollbar-color: #4a5568 transparent;
 }
 
-/* app/globals.css - Ajouter ces styles pour les popups modernes */
-
 /* 🎨 STYLES POPUP MODERNE */
 .leaflet-popup.modern-popup .leaflet-popup-content-wrapper {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
@@ -259,4 +257,3 @@
   backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(71, 85, 105, 0.3) !important;
 }
-

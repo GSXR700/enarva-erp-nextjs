@@ -3,6 +3,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom layer for additional utilities */
+@layer utilities {
+  /* Définition de bg-gray-750 personnalisé */
+  .bg-gray-750 {
+    background-color: rgb(55 65 81 / 0.8);
+  }
+}
+
 /* ... (votre CSS existant) */
 
 @keyframes slide-in-bottom {
@@ -260,7 +268,7 @@
   border: 1px solid rgba(71, 85, 105, 0.3) !important;
 }
 
-/* app/globals.css - Ajouts pour optimisation mobile tracking */
+/* ===== ENARVA MOBILE TRACKING DARK MODE STYLES ===== */
 
 /* Optimisations Leaflet pour dark mode */
 .dark .leaflet-popup-content-wrapper {
@@ -368,7 +376,7 @@
 
 /* Amélioration du contraste en dark mode */
 .dark .employee-card-hover:hover {
-  @apply bg-gray-750;
+  background-color: rgb(55 65 81 / 0.8); /* Utilisation directe de la couleur au lieu de @apply */
 }
 
 .dark .mission-status-pending {
@@ -414,4 +422,36 @@
 
 .employee-list::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Tracking mobile optimizations */
+.tracking-card-hover:hover {
+  @apply transform scale-105 transition-transform duration-200;
+}
+
+.mission-expand-animation {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Status indicators with pulse animation */
+.status-pulse {
+  animation: status-pulse 2s infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+/* Custom scrollbar for mission lists */
+.mission-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mission-scroll::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.mission-scroll::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
 }

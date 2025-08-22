@@ -6,38 +6,29 @@ import { MapContainer, TileLayer, Marker, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import ReactDOMServer from 'react-dom/server';
-import { MapPin, Users, Clock, Building, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronUp, Users, Clock, Building, Calendar } from 'lucide-react';
 import { useNotifications } from '@/app/context/NotificationContext';
 
-// Interface mise à jour selon l'API corrigée
 interface EmployeeLocation {
     id: string;
-    name: string;
+    name: string | null;
     image: string | null;
     currentLatitude: number | null;
     currentLongitude: number | null;
     lastSeen: Date | null;
-    role: string;
-    hasActiveMission: boolean;
-    missionCount: number;
-    missions: Array<{
+    missions?: Array<{
         id: string;
-        title: string;
+        title: string | null;
         status: string;
         scheduledStart: Date;
         scheduledEnd: Date | null;
         actualStart: Date | null;
         actualEnd: Date | null;
-        notes: string | null;
         order?: {
-          id: string;
-          orderNumber: string;
-          client: {
-            id: string;
-            nom: string;
-            adresse: string | null;
-            telephone: string | null;
-          };
+            client: {
+                nom: string;
+                adresse?: string | null;
+            }
         } | null;
     }>;
 }
@@ -47,7 +38,7 @@ interface TeamStatsProps {
     isMobile?: boolean;
 }
 
-// Création d'une icône personnalisée avec Lucide
+// Création d'une icône personnalisée avec Lucide pour un meilleur rendu visuel
 const createCustomIcon = (isActive: boolean = false) => {
   return L.divIcon({
     html: ReactDOMServer.renderToString(
@@ -64,7 +55,7 @@ const createCustomIcon = (isActive: boolean = false) => {
   });
 };
 
-// Composant pour les statistiques d'équipe
+// Composant pour les statistiques d'équipe (version mobile compacte)
 function TeamStats({ employees, isMobile = false }: TeamStatsProps) {
     const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
     
@@ -76,7 +67,9 @@ function TeamStats({ employees, isMobile = false }: TeamStatsProps) {
         activeEmployees.map(emp => `${emp.currentLatitude}-${emp.currentLongitude}`)
     ).size;
     
-    const employeesOnMission = activeEmployees.filter(emp => emp.hasActiveMission).length;
+    const employeesOnMission = activeEmployees.filter(emp => 
+        emp.missions?.some(mission => mission.status === 'IN_PROGRESS')
+    ).length;
 
     const toggleEmployee = (employeeId: string) => {
         const newExpanded = new Set(expandedEmployees);
@@ -114,7 +107,7 @@ function TeamStats({ employees, isMobile = false }: TeamStatsProps) {
         }
     };
 
-    const getInitials = (name: string) => {
+    const getInitials = (name: string | null) => {
         if (!name) return '?';
         return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     };
@@ -123,129 +116,166 @@ function TeamStats({ employees, isMobile = false }: TeamStatsProps) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 mb-4">
                 {/* Header compact pour mobile */}
-                <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                        <Users size={20} className="text-indigo-600 dark:text-indigo-400" />
+                <div className="p-3 border-b dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                         Équipes Actives
                     </h3>
-                    <div className="flex justify-between items-center mb-4">
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    <div className="flex justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                            <span className="text-blue-600 dark:text-blue-400 font-bold text-lg">
                                 {activeEmployees.length}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Employés</div>
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400">Employés</span>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                        <div className="flex items-center gap-2">
+                            <span className="text-purple-600 dark:text-purple-400 font-bold text-lg">
                                 {locationsCount}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Localisations</div>
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400">Localisations</span>
                         </div>
-                        <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        <div className="flex items-center gap-2">
+                            <span className="text-green-600 dark:text-green-400 font-bold text-lg">
                                 {employeesOnMission}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">En Mission</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-1 animate-pulse"></div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400">Temps Réel</div>
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400">En Mission</span>
                         </div>
                     </div>
+                </div>
 
-                    {/* Liste des employés avec expand/collapse sur mobile */}
-                    <div className="space-y-2">
-                        {activeEmployees.slice(0, 3).map(employee => {
-                            const isExpanded = expandedEmployees.has(employee.id);
-                            const lastSeen = employee.lastSeen ? new Date(employee.lastSeen) : null;
-                            const isOnline = lastSeen && (new Date().getTime() - lastSeen.getTime()) < 5 * 60 * 1000;
+                {/* Liste des employés avec expand/collapse */}
+                <div className="divide-y dark:divide-gray-700">
+                    {activeEmployees.map(employee => {
+                        const isExpanded = expandedEmployees.has(employee.id);
+                        const activeMission = employee.missions?.find(m => m.status === 'IN_PROGRESS');
+                        const lastSeen = employee.lastSeen ? new Date(employee.lastSeen) : null;
+                        const isOnline = lastSeen && (new Date().getTime() - lastSeen.getTime()) < 5 * 60 * 1000;
 
-                            return (
-                                <div key={employee.id} className="border dark:border-gray-600 rounded-lg p-2">
-                                    <button
-                                        onClick={() => toggleEmployee(employee.id)}
-                                        className="w-full flex items-center justify-between text-left"
-                                    >
-                                        <div className="flex items-center gap-2 flex-1">
-                                            {/* Avatar */}
-                                            <div className="relative">
-                                                {employee.image ? (
-                                                    <img 
-                                                        src={employee.image} 
-                                                        alt={employee.name} 
-                                                        className="w-8 h-8 rounded-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                                                        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                                                            {getInitials(employee.name)}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                {/* Indicateur en ligne */}
-                                                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
-                                                    isOnline ? 'bg-green-400' : 'bg-gray-400'
-                                                }`} />
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
-                                                    {employee.name}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {employee.missionCount} mission{employee.missionCount > 1 ? 's' : ''}
-                                                    {employee.hasActiveMission && (
-                                                        <span className="ml-1 text-green-600 dark:text-green-400">• Active</span>
-                                                    )}
-                                                </p>
-                                            </div>
+                        return (
+                            <div key={employee.id} className="p-3">
+                                {/* En-tête employé */}
+                                <button
+                                    onClick={() => toggleEmployee(employee.id)}
+                                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded p-1 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3 flex-1">
+                                        {/* Avatar */}
+                                        <div className="relative">
+                                            {employee.image ? (
+                                                <img 
+                                                    src={employee.image} 
+                                                    alt={employee.name || ''} 
+                                                    className="w-8 h-8 rounded-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                                                    <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                                                        {getInitials(employee.name)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {/* Indicateur en ligne */}
+                                            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-gray-800 ${
+                                                isOnline ? 'bg-green-400' : 'bg-gray-400'
+                                            }`} />
                                         </div>
 
-                                        <ChevronDown 
-                                            size={16} 
-                                            className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-                                        />
-                                    </button>
+                                        {/* Info employé */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                                                {employee.name || 'Sans nom'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {isOnline ? `Actif il y a ${Math.floor((new Date().getTime() - lastSeen!.getTime()) / 60000)}min` : 'Hors ligne'}
+                                            </p>
+                                        </div>
 
-                                    {/* Détails missions expandables */}
-                                    {isExpanded && employee.missions.length > 0 && (
-                                        <div className="mt-2 pl-10 space-y-1">
-                                            {employee.missions.map(mission => (
-                                                <div key={mission.id} className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-medium text-gray-900 dark:text-white truncate">
-                                                            {mission.order?.client?.nom || mission.title}
-                                                        </span>
+                                        {/* Statut mission */}
+                                        {activeMission && (
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                                                    En mission
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Bouton expand */}
+                                    <div className="ml-2">
+                                        {isExpanded ? (
+                                            <ChevronUp size={16} className="text-gray-400" />
+                                        ) : (
+                                            <ChevronDown size={16} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                </button>
+
+                                {/* Détails missions (expandable) */}
+                                {isExpanded && (
+                                    <div className="mt-3 pl-11 space-y-2">
+                                        {employee.missions && employee.missions.length > 0 ? (
+                                            employee.missions.map(mission => (
+                                                <div 
+                                                    key={mission.id}
+                                                    className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                                                >
+                                                    <div className="flex items-start justify-between mb-1">
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-medium text-gray-900 dark:text-white text-xs truncate">
+                                                                {mission.order?.client?.nom || mission.title || 'Mission sans titre'}
+                                                            </p>
+                                                            {mission.order?.client?.adresse && (
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                                                                    <Building size={10} />
+                                                                    <span className="truncate">{mission.order.client.adresse}</span>
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                         <span className={getStatusBadge(mission.status)}>
                                                             {getStatusText(mission.status)}
                                                         </span>
                                                     </div>
-                                                    <div className="text-gray-500 dark:text-gray-400">
-                                                        {new Date(mission.scheduledStart).toLocaleTimeString('fr-FR', { 
-                                                            hour: '2-digit', 
-                                                            minute: '2-digit' 
-                                                        })}
+
+                                                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar size={10} />
+                                                            <span>
+                                                                {new Date(mission.scheduledStart).toLocaleTimeString('fr-FR', { 
+                                                                    hour: '2-digit', 
+                                                                    minute: '2-digit' 
+                                                                })}
+                                                            </span>
+                                                        </div>
+                                                        {mission.actualStart && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Clock size={10} />
+                                                                <span className="text-green-600 dark:text-green-400">
+                                                                    Démarré {new Date(mission.actualStart).toLocaleTimeString('fr-FR', { 
+                                                                        hour: '2-digit', 
+                                                                        minute: '2-digit' 
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                        
-                        {activeEmployees.length > 3 && (
-                            <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                                +{activeEmployees.length - 3} autres employés sur la carte
-                            </p>
-                        )}
-                    </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                                                Aucune mission assignée
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         );
     }
 
-    // Version desktop
+    // Version desktop (existante)
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4">
             <div className="flex items-center gap-2 mb-4">
@@ -253,7 +283,7 @@ function TeamStats({ employees, isMobile = false }: TeamStatsProps) {
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">Équipes Actives</h3>
             </div>
             
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                         {activeEmployees.length}
@@ -299,16 +329,19 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
     useEffect(() => {
         if (!socket) return;
 
+        // L'admin rejoint une "salle" pour écouter les mises à jour de localisation
         socket.emit('join-tracking-room');
 
         const handleLocationUpdate = (updatedEmployee: EmployeeLocation) => {
             setEmployees(prevEmployees => {
                 const existingEmployee = prevEmployees.find(emp => emp.id === updatedEmployee.id);
                 if (existingEmployee) {
+                    // Mettre à jour la position d'un employé existant
                     return prevEmployees.map(emp =>
                         emp.id === updatedEmployee.id ? updatedEmployee : emp
                     );
                 } else {
+                    // Ajouter un nouvel employé à la carte s'il n'y était pas
                     return [...prevEmployees, updatedEmployee];
                 }
             });
@@ -316,17 +349,20 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
 
         socket.on('location-update', handleLocationUpdate);
 
+        // Nettoyage de l'écouteur lors du démontage du composant
         return () => {
             socket.off('location-update', handleLocationUpdate);
         };
     }, [socket]);
 
-    const defaultPosition: [number, number] = [33.5731, -7.5898]; // Casablanca
+    const defaultPosition: [number, number] = [33.5731, -7.5898]; // Position par défaut (Casablanca)
 
     return (
         <div className="flex flex-col h-full">
+            {/* Stats compactes pour mobile */}
             <TeamStats employees={employees} isMobile={isMobile} />
             
+            {/* Carte */}
             <div className="flex-1 relative min-h-[300px]">
                 <MapContainer 
                     center={defaultPosition} 
@@ -341,11 +377,12 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                     />
                     {employees.map(emp => {
                         if (emp.currentLatitude && emp.currentLongitude) {
+                            const hasActiveMission = emp.missions?.some(m => m.status === 'IN_PROGRESS');
                             return (
                                 <Marker
                                     key={emp.id}
                                     position={[emp.currentLatitude, emp.currentLongitude]}
-                                    icon={createCustomIcon(emp.hasActiveMission)}
+                                    icon={createCustomIcon(hasActiveMission)}
                                 >
                                     <Popup>
                                         <div className="min-w-[200px]">
@@ -353,45 +390,42 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                                                 {emp.image ? (
                                                     <img 
                                                         src={emp.image} 
-                                                        alt={emp.name} 
+                                                        alt={emp.name || ''} 
                                                         className="w-8 h-8 rounded-full object-cover"
                                                     />
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
                                                         <span className="text-xs font-semibold text-indigo-600">
-                                                            {emp.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                                            {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
                                                         </span>
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <div className="font-semibold text-gray-900">{emp.name}</div>
+                                                    <div className="font-semibold text-gray-900">
+                                                        {emp.name || 'Employé inconnu'}
+                                                    </div>
                                                     <div className="text-xs text-gray-500">
-                                                        {emp.missionCount} mission{emp.missionCount > 1 ? 's' : ''}
-                                                        {emp.hasActiveMission && ' • En cours'}
+                                                        Dernière MAJ: {emp.lastSeen ? new Date(emp.lastSeen).toLocaleTimeString() : 'N/A'}
                                                     </div>
                                                 </div>
                                             </div>
                                             
-                                            {emp.missions.length > 0 && (
+                                            {emp.missions && emp.missions.length > 0 && (
                                                 <div className="space-y-1">
                                                     {emp.missions.slice(0, 2).map(mission => (
                                                         <div key={mission.id} className="p-2 bg-gray-50 rounded text-xs">
                                                             <div className="font-medium text-gray-800">
-                                                                {mission.order?.client?.nom || mission.title}
+                                                                {mission.order?.client?.nom || mission.title || 'Mission sans titre'}
                                                             </div>
                                                             <div className="flex items-center justify-between mt-1">
+                                                                <span className={getStatusBadge(mission.status).replace('px-2 py-1', 'px-1 py-0.5')}>
+                                                                    {getStatusText(mission.status)}
+                                                                </span>
                                                                 <span className="text-gray-500">
                                                                     {new Date(mission.scheduledStart).toLocaleTimeString('fr-FR', { 
                                                                         hour: '2-digit', 
                                                                         minute: '2-digit' 
                                                                     })}
-                                                                </span>
-                                                                <span className={`px-1 py-0.5 rounded text-xs ${
-                                                                    mission.status === 'IN_PROGRESS' ? 'bg-green-100 text-green-800' :
-                                                                    mission.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                                                    'bg-gray-100 text-gray-800'
-                                                                }`}>
-                                                                    {mission.status}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -407,7 +441,7 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                                     </Popup>
                                     <Tooltip permanent direction="top" offset={[0, -30]} opacity={0.9}>
                                         <span className="text-xs font-medium">
-                                            {emp.name.split(' ')[0]}
+                                            {emp.name?.split(' ')[0] || 'Employé'}
                                         </span>
                                     </Tooltip>
                                 </Marker>
@@ -419,4 +453,31 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
             </div>
         </div>
     );
+
+    // Fonctions utilitaires pour les badges de statut
+    function getStatusBadge(status: string) {
+        const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
+        switch (status) {
+            case 'IN_PROGRESS':
+                return `${baseClasses} bg-green-100 text-green-800`;
+            case 'PENDING':
+                return `${baseClasses} bg-yellow-100 text-yellow-800`;
+            case 'APPROBATION':
+                return `${baseClasses} bg-orange-100 text-orange-800`;
+            default:
+                return `${baseClasses} bg-gray-100 text-gray-800`;
+        }
+    }
+
+    function getStatusText(status: string) {
+        switch (status) {
+            case 'IN_PROGRESS': return 'En cours';
+            case 'PENDING': return 'En attente';
+            case 'APPROBATION': return 'Validation';
+            case 'COMPLETED': return 'Terminé';
+            case 'VALIDATED': return 'Validé';
+            case 'CANCELLED': return 'Annulé';
+            default: return status;
+        }
+    }
 }

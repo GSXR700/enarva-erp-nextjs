@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Employee, Mission, Order, Client } from "@prisma/client";
-import { Camera, ShieldCheck, ListChecks, Loader2, PlayCircle, StopCircle, CheckCircle, MapPin, Clock, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, ShieldCheck, ListChecks, Loader2, PlayCircle, StopCircle, CheckCircle, MapPin, Clock, RefreshCw } from "lucide-react";
 import { QualityCheckForm } from './QualityCheckForm';
 import { ObservationUploader } from './ObservationUploader';
 import { AttachmentForm } from './AttachmentForm';
@@ -11,31 +11,21 @@ import { punchTimesheet } from '../actions';
 import { useLocationTracker } from '../hooks/useLocationTracker';
 
 type MissionWithDetails = Mission & {
-  order: (Order & {
+  order: (Order & { // The order can be null
     client: Client;
   }) | null;
 };
 
-function MissionCard({ 
-  mission, 
-  onSelect, 
-  isExpanded, 
-  onToggleExpand 
-}: { 
-  mission: MissionWithDetails; 
-  onSelect: () => void;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-}) {
+function MissionCard({ mission, onSelect }: { mission: MissionWithDetails; onSelect: () => void; }) {
     const getStatusBadge = () => {
         switch (mission.status) {
-            case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-600/30';
-            case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-600/30';
-            case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-600/30';
-            case 'APPROBATION': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-600/30';
-            case 'VALIDATED': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-600/30';
-            case 'CANCELLED': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-600/30';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+            case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200';
+            case 'APPROBATION': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'VALIDATED': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+            case 'CANCELLED': return 'bg-red-100 text-red-800 border-red-200';
+            default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
 
@@ -53,12 +43,12 @@ function MissionCard({
 
     const getStatusIcon = () => {
         switch (mission.status) {
-            case 'PENDING': return <Clock size={14} className="text-yellow-600 dark:text-yellow-400" />;
-            case 'IN_PROGRESS': return <PlayCircle size={14} className="text-blue-600 dark:text-blue-400" />;
-            case 'COMPLETED': return <CheckCircle size={14} className="text-green-600 dark:text-green-400" />;
-            case 'APPROBATION': return <Clock size={14} className="text-orange-600 dark:text-orange-400" />;
-            case 'VALIDATED': return <CheckCircle size={14} className="text-emerald-600 dark:text-emerald-400" />;
-            default: return <Clock size={14} className="text-gray-500" />;
+            case 'PENDING': return <Clock size={14} />;
+            case 'IN_PROGRESS': return <PlayCircle size={14} />;
+            case 'COMPLETED': return <CheckCircle size={14} />;
+            case 'APPROBATION': return <Clock size={14} />;
+            case 'VALIDATED': return <CheckCircle size={14} />;
+            default: return null;
         }
     };
 
@@ -67,106 +57,52 @@ function MissionCard({
     const address = mission.order?.client?.adresse || "Adresse non disponible";
 
     return (
-        <div className="w-full mb-4 rounded-xl shadow-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {/* Main card content */}
-            <div className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg text-gray-800 dark:text-white truncate">{title}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5">
-                            <MapPin size={12} className="flex-shrink-0" /> 
-                            <span className="truncate">{address}</span>
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2">
-                        <div className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge()}`}>
-                            {getStatusIcon()}
-                            <span>{getStatusText()}</span>
-                        </div>
-                        <button
-                            onClick={onToggleExpand}
-                            className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            {isExpanded ? (
-                                <ChevronUp size={16} className="text-gray-400" />
-                            ) : (
-                                <ChevronDown size={16} className="text-gray-400" />
-                            )}
-                        </button>
-                    </div>
-                </div>
-                
-                {/* Always visible timing info */}
-                <div className="space-y-1">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Prévu: {new Date(mission.scheduledStart).toLocaleString('fr-FR', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            day: '2-digit',
-                            month: '2-digit'
-                        })}
+        <div 
+            onClick={onSelect} 
+            className="w-full p-4 mb-4 rounded-xl shadow-md bg-white border border-gray-200 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all"
+        >
+            <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-lg text-gray-800 truncate">{title}</h3>
+                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                        <MapPin size={12} className="flex-shrink-0" /> 
+                        <span className="truncate">{address}</span>
                     </p>
-                    
-                    {mission.actualStart && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                            Démarré: {new Date(mission.actualStart).toLocaleTimeString('fr-FR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })}
-                        </p>
-                    )}
-                    
-                    {mission.actualEnd && mission.status === 'APPROBATION' && (
-                        <p className="text-xs text-orange-600 dark:text-orange-400">
-                            Terminé: {new Date(mission.actualEnd).toLocaleTimeString('fr-FR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })}
-                        </p>
-                    )}
+                </div>
+                <div className={`flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border ${getStatusBadge()}`}>
+                    {getStatusIcon()}
+                    <span>{getStatusText()}</span>
                 </div>
             </div>
-
-            {/* Expanded content */}
-            {isExpanded && (
-                <div className="border-t dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-750">
-                    <div className="space-y-3">
-                        {/* Additional mission details */}
-                        {mission.order?.client && (
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                                    Client
-                                </h4>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                    <p><span className="font-medium">Nom:</span> {mission.order.client.nom}</p>
-                                    {mission.order.client.telephone && (
-                                        <p><span className="font-medium">Tél:</span> {mission.order.client.telephone}</p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {mission.notes && (
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                                    Notes
-                                </h4>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                    {mission.notes}
-                                </p>
-                            </div>
-                        )}
-
-                        {/* Action button */}
-                        <button
-                            onClick={onSelect}
-                            className="w-full px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm font-medium"
-                        >
-                            Voir les détails
-                        </button>
-                    </div>
-                </div>
-            )}
+            
+            <div className="mt-3 space-y-1">
+                <p className="text-sm text-gray-600">
+                    Prévu: {new Date(mission.scheduledStart).toLocaleString('fr-FR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        day: '2-digit',
+                        month: '2-digit'
+                    })}
+                </p>
+                
+                {mission.actualStart && (
+                    <p className="text-xs text-blue-600">
+                        Démarré: {new Date(mission.actualStart).toLocaleTimeString('fr-FR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        })}
+                    </p>
+                )}
+                
+                {mission.actualEnd && mission.status === 'APPROBATION' && (
+                    <p className="text-xs text-orange-600">
+                        Terminé: {new Date(mission.actualEnd).toLocaleTimeString('fr-FR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        })}
+                    </p>
+                )}
+            </div>
         </div>
     );
 }
@@ -180,20 +116,9 @@ export function MobileView({ employee }: { employee: Employee }) {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-    const [expandedMissions, setExpandedMissions] = useState<Set<string>>(new Set());
 
     const isTrackingActive = missions.some(m => m.status === 'IN_PROGRESS');
-    const { isTracking } = useLocationTracker(isTrackingActive);
-
-    const toggleMissionExpansion = (missionId: string) => {
-        const newExpanded = new Set(expandedMissions);
-        if (newExpanded.has(missionId)) {
-            newExpanded.delete(missionId);
-        } else {
-            newExpanded.add(missionId);
-        }
-        setExpandedMissions(newExpanded);
-    };
+    useLocationTracker(isTrackingActive);
 
     const fetchMissions = async (showRefreshIndicator = false) => {
         if (showRefreshIndicator) {
@@ -293,7 +218,7 @@ export function MobileView({ employee }: { employee: Employee }) {
     if (activeForm && selectedMission) {
         if (activeForm === 'observation') 
             return (
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center p-4">
+                <div className="min-h-screen bg-gray-50 flex items-center p-4">
                     <ObservationUploader 
                         employee={employee} 
                         missionId={selectedMission.id} 
@@ -304,7 +229,7 @@ export function MobileView({ employee }: { employee: Employee }) {
         
         if (activeForm === 'quality' && selectedMission.order) 
             return (
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center p-4">
+                <div className="min-h-screen bg-gray-50 flex items-center p-4">
                     <QualityCheckForm 
                         missionId={selectedMission.id} 
                         clientId={selectedMission.order.clientId} 
@@ -315,7 +240,7 @@ export function MobileView({ employee }: { employee: Employee }) {
         
         if (activeForm === 'attachment' && selectedMission.order) 
             return (
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center p-4">
+                <div className="min-h-screen bg-gray-50 flex items-center p-4">
                     <AttachmentForm 
                         mission={selectedMission as MissionWithDetails & { order: Order & { client: Client } }} 
                         onFinish={handleFinishForm} 
@@ -325,22 +250,22 @@ export function MobileView({ employee }: { employee: Employee }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Header */}
-            <header className="bg-white dark:bg-gray-800 shadow-sm px-4 py-4 border-b dark:border-gray-700">
+            <header className="bg-white shadow-sm px-4 py-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-xl font-bold text-gray-800 dark:text-white">Mes Missions</h1>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{employee.firstName} {employee.lastName}</p>
+                        <h1 className="text-xl font-bold text-gray-800">Mes Missions</h1>
+                        <p className="text-sm text-gray-500">{employee.firstName} {employee.lastName}</p>
                     </div>
                     <button
                         onClick={handleManualRefresh}
                         disabled={isRefreshing}
-                        className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                        className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
                     >
                         <RefreshCw 
                             size={20} 
-                            className={`text-gray-600 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`}
+                            className={`text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`}
                         />
                     </button>
                 </div>
@@ -348,29 +273,21 @@ export function MobileView({ employee }: { employee: Employee }) {
                 {/* Status and Error Messages */}
                 <div className="mt-3 space-y-2">
                     {error && (
-                        <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm rounded-lg border border-red-200 dark:border-red-600/30">
+                        <div className="p-3 bg-red-100 text-red-700 text-sm rounded-lg border border-red-200">
                             {error}
                         </div>
                     )}
                     
-                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>
                             Dernière mise à jour: {lastRefresh.toLocaleTimeString('fr-FR', { 
                                 hour: '2-digit', 
                                 minute: '2-digit' 
                             })}
                         </span>
-                        <div className="flex items-center gap-2">
-                            {isTracking && (
-                                <div className="flex items-center gap-1">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    <span className="text-green-600 dark:text-green-400">GPS</span>
-                                </div>
-                            )}
-                            {isRefreshing && (
-                                <span className="text-blue-600 dark:text-blue-400">Actualisation...</span>
-                            )}
-                        </div>
+                        {isRefreshing && (
+                            <span className="text-blue-600">Actualisation...</span>
+                        )}
                     </div>
                 </div>
             </header>
@@ -380,8 +297,8 @@ export function MobileView({ employee }: { employee: Employee }) {
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64">
                         <div className="text-center">
-                            <Loader2 className="animate-spin text-gray-500 dark:text-gray-400 mx-auto mb-4" size={32} />
-                            <p className="text-gray-500 dark:text-gray-400">Chargement des missions...</p>
+                            <Loader2 className="animate-spin text-gray-500 mx-auto mb-4" size={32} />
+                            <p className="text-gray-500">Chargement des missions...</p>
                         </div>
                     </div>
                 ) : missions.length > 0 ? (
@@ -390,17 +307,15 @@ export function MobileView({ employee }: { employee: Employee }) {
                             <MissionCard 
                                 key={mission.id} 
                                 mission={mission} 
-                                onSelect={() => handleSelectMission(mission)}
-                                isExpanded={expandedMissions.has(mission.id)}
-                                onToggleExpand={() => toggleMissionExpansion(mission.id)}
+                                onSelect={() => handleSelectMission(mission)} 
                             />
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center mt-16 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                        <ListChecks size={40} className="mx-auto text-gray-400 dark:text-gray-500 mb-4" />
-                        <h3 className="font-semibold text-gray-600 dark:text-gray-300 mb-2">Aucune mission pour aujourd'hui</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Reposez-vous bien !</p>
+                    <div className="text-center mt-16 p-6 bg-white rounded-lg shadow-sm">
+                        <ListChecks size={40} className="mx-auto text-gray-400 mb-4" />
+                        <h3 className="font-semibold text-gray-600 mb-2">Aucune mission pour aujourd'hui</h3>
+                        <p className="text-sm text-gray-500">Reposez-vous bien !</p>
                     </div>
                 )}
             </main>
@@ -408,19 +323,19 @@ export function MobileView({ employee }: { employee: Employee }) {
             {/* Mission Detail Modal */}
             {selectedMission && (
                 <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
-                    <div className="w-full bg-white dark:bg-gray-800 rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto">
+                    <div className="w-full bg-white rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto">
                         {/* Modal Header */}
                         <div className="flex justify-between items-start mb-4">
                             <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white truncate">
+                                <h3 className="text-lg font-bold text-gray-800 truncate">
                                     {selectedMission.order?.client?.nom || selectedMission.title}
                                 </h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                <p className="text-sm text-gray-500 flex items-center gap-2">
                                     <span>Status: {selectedMission.status}</span>
                                     <span className="w-2 h-2 rounded-full bg-orange-400"></span>
                                 </p>
                                 {selectedMission.order?.client?.adresse && (
-                                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
+                                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                                         <MapPin size={12} />
                                         {selectedMission.order.client.adresse}
                                     </p>
@@ -428,7 +343,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                             </div>
                             <button 
                                 onClick={() => setSelectedMission(null)}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none ml-4"
+                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-4"
                             >
                                 ×
                             </button>
@@ -470,11 +385,11 @@ export function MobileView({ employee }: { employee: Employee }) {
                             
                             {/* MISSION WAITING FOR APPROBATION */}
                             {selectedMission.status === 'APPROBATION' && (
-                                <div className="w-full py-4 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-600/30 text-orange-800 dark:text-orange-300 rounded-lg flex items-center justify-center gap-3">
+                                <div className="w-full py-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-lg flex items-center justify-center gap-3">
                                     <Clock size={20} />
                                     <div className="text-center">
                                         <p className="font-semibold">En attente d'approbation</p>
-                                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                        <p className="text-xs text-orange-600 mt-1">
                                             Votre superviseur doit valider cette mission
                                         </p>
                                     </div>
@@ -484,9 +399,9 @@ export function MobileView({ employee }: { employee: Employee }) {
                             {/* MISSION COMPLETED - FORMS AVAILABLE */}
                             {selectedMission.status === 'COMPLETED' && (
                                 <>
-                                    <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-600/30 text-green-800 dark:text-green-300 rounded-lg text-center">
+                                    <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-center">
                                         <p className="font-semibold">Mission terminée</p>
-                                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                        <p className="text-xs text-green-600 mt-1">
                                             Vous pouvez maintenant effectuer les contrôles qualité
                                         </p>
                                     </div>
@@ -502,7 +417,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                                     
                                     <button 
                                         onClick={() => setActiveForm('observation')} 
-                                        className="w-full py-4 bg-gray-800 dark:bg-gray-700 text-white rounded-lg flex items-center justify-center gap-3 hover:bg-gray-900 dark:hover:bg-gray-600 transition"
+                                        className="w-full py-4 bg-gray-800 text-white rounded-lg flex items-center justify-center gap-3 hover:bg-gray-900 transition"
                                     >
                                         <Camera size={20} />
                                         <span>Signaler une Observation</span>
@@ -518,7 +433,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                                     </button>
                                     
                                     {!selectedMission.order && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+                                        <p className="text-xs text-gray-500 text-center mt-2">
                                             * Certaines actions nécessitent une commande client
                                         </p>
                                     )}
@@ -527,11 +442,11 @@ export function MobileView({ employee }: { employee: Employee }) {
                             
                             {/* MISSION VALIDATED */}
                             {selectedMission.status === 'VALIDATED' && (
-                                <div className="w-full py-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-600/30 text-green-800 dark:text-green-300 rounded-lg flex items-center justify-center gap-3">
+                                <div className="w-full py-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center justify-center gap-3">
                                     <CheckCircle size={20} />
                                     <div className="text-center">
                                         <p className="font-semibold">Mission validée</p>
-                                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                        <p className="text-xs text-green-600 mt-1">
                                             Cette mission est terminée et approuvée
                                         </p>
                                     </div>
@@ -542,7 +457,7 @@ export function MobileView({ employee }: { employee: Employee }) {
                         {/* Close Button */}
                         <button 
                             onClick={() => setSelectedMission(null)} 
-                            className="w-full text-center mt-6 py-3 text-gray-500 dark:text-gray-400 font-semibold hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition"
+                            className="w-full text-center mt-6 py-3 text-gray-500 font-semibold hover:text-gray-700 hover:bg-gray-50 rounded-lg transition"
                         >
                             Fermer
                         </button>

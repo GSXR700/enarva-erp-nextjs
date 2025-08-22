@@ -1,4 +1,5 @@
 // app/api/tracking/employees/route.ts
+// 🔧 CORRECTION: Utiliser la structure correcte avec les missions
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -6,23 +7,46 @@ import { getServerSession } from "next-auth";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    console.log('🔍 API: Starting to fetch tracked employees...');
     
+    const session = await getServerSession(authOptions);
     if (!session?.user || !['ADMIN', 'MANAGER'].includes(session.user.role)) {
+      console.log('❌ API: Unauthorized access');
       return new NextResponse("Accès non autorisé", { status: 403 });
     }
 
-    // 🔧 SOLUTION FINALE: Requête via Employee avec la relation correcte
+    // 🔧 SOLUTION 1: D'abord, tester la requête simple pour voir s'il y a des users avec location
+    const usersWithLocation = await prisma.user.findMany({
+      where: {
+        AND: [
+          { currentLatitude: { not: null } },
+          { currentLongitude: { not: null } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        currentLatitude: true,
+        currentLongitude: true,
+        lastSeen: true,
+      }
+    });
+
+    console.log(`📊 API: Found ${usersWithLocation.length} users with location`);
+    
+    if (usersWithLocation.length === 0) {
+      console.log('⚠️ API: No users have location data in database');
+      return NextResponse.json([]);
+    }
+
+    // 🔧 SOLUTION 2: Si on a des users avec location, essayer de récupérer leurs infos employés + missions
     const employeesWithMissions = await prisma.employee.findMany({
       where: {
         user: {
           AND: [
-            {
-              OR: [
-                { currentLatitude: { not: null } },
-                { currentLongitude: { not: null } }
-              ]
-            }
+            { currentLatitude: { not: null } },
+            { currentLongitude: { not: null } }
           ]
         }
       },
@@ -40,11 +64,10 @@ export async function GET() {
             lastSeen: true
           }
         },
-        // 🔧 CORRECTION: 'missions' est la relation correcte sur Employee
         missions: {
           where: {
             status: {
-              in: ['PENDING', 'IN_PROGRESS'] // Missions actives
+              in: ['PENDING', 'IN_PROGRESS']
             }
           },
           select: {
@@ -67,22 +90,34 @@ export async function GET() {
           orderBy: {
             scheduledStart: 'asc'
           },
-          take: 1 // Mission la plus proche
-        }
-      },
-      orderBy: {
-        user: {
-          lastSeen: 'desc'
+          take: 1
         }
       }
     });
 
-    // Transformer les données pour le frontend
+    console.log(`👥 API: Found ${employeesWithMissions.length} employees with location`);
+
+    // 🔧 FALLBACK: Si pas d'employés trouvés, retourner les users simples
+    if (employeesWithMissions.length === 0) {
+      console.log('⚠️ API: No employees found, returning users with location');
+      const simpleUsers = usersWithLocation.map(user => ({
+        id: user.id,
+        name: user.name,
+        image: user.image,
+        currentLatitude: user.currentLatitude,
+        currentLongitude: user.currentLongitude,
+        lastSeen: user.lastSeen,
+        currentMission: null
+      }));
+      return NextResponse.json(simpleUsers);
+    }
+
+    // 🔧 FORMAT: Transformer les données pour le frontend
     const formattedEmployees = employeesWithMissions.map(employee => {
       const currentMission = employee.missions[0];
       
       return {
-        id: employee.user.id, // ID du User pour Socket.IO
+        id: employee.user.id,
         name: employee.user.name || `${employee.firstName} ${employee.lastName}`,
         image: employee.user.image,
         currentLatitude: employee.user.currentLatitude,
@@ -100,10 +135,11 @@ export async function GET() {
       };
     });
 
+    console.log(`✅ API: Returning ${formattedEmployees.length} formatted employees`);
     return NextResponse.json(formattedEmployees);
 
   } catch (error) {
-    console.error("[TRACKING_EMPLOYEES_ERROR]", error);
+    console.error("❌ API: Error in tracking/employees:", error);
     return new NextResponse("Erreur Interne du Serveur", { status: 500 });
   }
 }

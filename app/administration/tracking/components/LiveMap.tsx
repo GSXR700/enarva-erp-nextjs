@@ -17,7 +17,6 @@ interface EmployeeLocation {
     currentLatitude: number | null;
     currentLongitude: number | null;
     lastSeen: Date | null;
-    // Ajout des infos mission pour l'accès rapide
     currentMission?: {
         id: string;
         title: string;
@@ -34,18 +33,18 @@ interface EmployeeCluster {
     id: string;
 }
 
-// Fonction pour grouper les employés par proximité (même localisation ou très proche)
+// 🔧 AJOUT: Debug logging
 const clusterEmployees = (employees: EmployeeLocation[]): EmployeeCluster[] => {
+    console.log('🔍 Clustering employees:', employees);
     const clusters: EmployeeCluster[] = [];
     const processed = new Set<string>();
-    const PROXIMITY_THRESHOLD = 0.001; // ~100m de distance
+    const PROXIMITY_THRESHOLD = 0.001;
 
     employees.forEach(employee => {
         if (!employee.currentLatitude || !employee.currentLongitude || processed.has(employee.id)) {
             return;
         }
 
-        // Trouver tous les employés à proximité
         const nearbyEmployees = employees.filter(emp => {
             if (!emp.currentLatitude || !emp.currentLongitude || processed.has(emp.id)) {
                 return false;
@@ -59,10 +58,8 @@ const clusterEmployees = (employees: EmployeeLocation[]): EmployeeCluster[] => {
             return distance <= PROXIMITY_THRESHOLD;
         });
 
-        // Marquer comme traités
         nearbyEmployees.forEach(emp => processed.add(emp.id));
 
-        // Créer le cluster
         clusters.push({
             latitude: employee.currentLatitude,
             longitude: employee.currentLongitude,
@@ -71,10 +68,10 @@ const clusterEmployees = (employees: EmployeeLocation[]): EmployeeCluster[] => {
         });
     });
 
+    console.log('📍 Created clusters:', clusters);
     return clusters;
 };
 
-// Icône pour un seul employé
 const createSingleEmployeeIcon = () => {
     return L.divIcon({
         html: ReactDOMServer.renderToString(
@@ -90,7 +87,6 @@ const createSingleEmployeeIcon = () => {
     });
 };
 
-// Icône pour un cluster d'employés
 const createClusterIcon = (count: number) => {
     return L.divIcon({
         html: ReactDOMServer.renderToString(
@@ -108,7 +104,6 @@ const createClusterIcon = (count: number) => {
     });
 };
 
-// Composant pour afficher les détails d'un employé
 const EmployeeCard = ({ employee }: { employee: EmployeeLocation }) => (
     <div className="border-b border-gray-200 dark:border-gray-600 last:border-b-0 pb-3 last:pb-0 mb-3 last:mb-0">
         <div className="flex items-center space-x-3">
@@ -166,12 +161,23 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
     const [employees, setEmployees] = useState(initialEmployees);
     const { socket } = useNotifications();
 
+    // 🔧 AJOUT: Debug logging
     useEffect(() => {
-        if (!socket) return;
+        console.log('🗺️ LiveMap: Initial employees:', initialEmployees);
+        console.log('🗺️ LiveMap: Employees with location:', initialEmployees.filter(emp => emp.currentLatitude && emp.currentLongitude));
+    }, [initialEmployees]);
 
+    useEffect(() => {
+        if (!socket) {
+            console.log('🔌 LiveMap: No socket available');
+            return;
+        }
+
+        console.log('🔌 LiveMap: Socket connected, joining tracking room');
         socket.emit('join-tracking-room');
 
         const handleLocationUpdate = (updatedEmployee: EmployeeLocation) => {
+            console.log('📍 LiveMap: Location update received:', updatedEmployee);
             setEmployees(prevEmployees => {
                 const existingEmployee = prevEmployees.find(emp => emp.id === updatedEmployee.id);
                 if (existingEmployee) {
@@ -192,9 +198,10 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
     }, [socket]);
 
     const defaultPosition: [number, number] = [33.5731, -7.5898]; // Casablanca
-
-    // Grouper les employés par clusters
     const employeeClusters = clusterEmployees(employees);
+
+    // 🔧 AJOUT: Si pas d'employés, afficher un marqueur de test
+    const hasEmployees = employeeClusters.length > 0;
 
     return (
         <div className="h-full w-full relative">
@@ -216,6 +223,31 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 
+                {/* 🔧 AJOUT: Marqueur de test si pas d'employés */}
+                {!hasEmployees && (
+                    <Marker
+                        position={defaultPosition}
+                        icon={L.divIcon({
+                            html: ReactDOMServer.renderToString(
+                                <div className="bg-red-500 text-white p-2 rounded">
+                                    TEST - Pas d'employés
+                                </div>
+                            ),
+                            className: 'bg-transparent border-none',
+                            iconSize: [150, 40],
+                            iconAnchor: [75, 20],
+                        })}
+                    >
+                        <Popup>
+                            <div className="text-center">
+                                <strong>Mode Debug</strong><br/>
+                                Aucun employé avec localisation trouvé<br/>
+                                Employés total: {employees.length}
+                            </div>
+                        </Popup>
+                    </Marker>
+                )}
+                
                 {employeeClusters.map(cluster => {
                     const isSingleEmployee = cluster.employees.length === 1;
                     const employee = cluster.employees[0];
@@ -232,7 +264,6 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                             <Popup maxWidth={300} className="custom-popup">
                                 <div className="max-h-80 overflow-y-auto">
                                     {isSingleEmployee ? (
-                                        // Affichage pour un seul employé
                                         <div>
                                             <h3 className="font-semibold text-lg mb-3 text-gray-800 dark:text-white">
                                                 📍 Employé sur le terrain
@@ -240,7 +271,6 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                                             <EmployeeCard employee={employee} />
                                         </div>
                                     ) : (
-                                        // Affichage pour plusieurs employés
                                         <div>
                                             <h3 className="font-semibold text-lg mb-3 text-gray-800 dark:text-white flex items-center">
                                                 <Users className="mr-2" size={20} />
@@ -273,36 +303,48 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                 })}
             </MapContainer>
 
-            {/* Overlay avec statistiques */}
+            {/* Overlay avec statistiques + debug */}
             <div className="absolute top-4 right-4 bg-white dark:bg-dark-surface rounded-lg shadow-lg p-4 z-10 max-w-xs">
                 <h3 className="font-semibold text-gray-800 dark:text-dark-text mb-3 flex items-center">
                     <Users className="mr-2" size={16} />
-                    Équipes Actives
+                    Debug Info
                 </h3>
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-dark-subtle">Total employés:</span>
+                        <span className="font-medium text-gray-800 dark:text-dark-text">
+                            {employees.length}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-dark-subtle">Avec localisation:</span>
                         <span className="font-medium text-gray-800 dark:text-dark-text">
                             {employees.filter(emp => emp.currentLatitude && emp.currentLongitude).length}
                         </span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-dark-subtle">Localisations:</span>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-dark-subtle">Clusters:</span>
                         <span className="font-medium text-gray-800 dark:text-dark-text">
                             {employeeClusters.length}
                         </span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-dark-subtle">En mission:</span>
                         <span className="font-medium text-green-600">
                             {employees.filter(emp => emp.currentMission).length}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-dark-subtle">Socket:</span>
+                        <span className={`font-medium ${socket ? 'text-green-600' : 'text-red-600'}`}>
+                            {socket ? 'Connecté' : 'Déconnecté'}
                         </span>
                     </div>
                 </div>
                 
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                     <p className="text-xs text-gray-500 dark:text-dark-subtle">
-                        💡 Cliquez sur les marqueurs pour voir les détails et accéder aux missions
+                        🔍 Vérifiez la console pour les logs détaillés
                     </p>
                 </div>
             </div>

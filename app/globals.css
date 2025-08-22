@@ -259,3 +259,159 @@
   backdrop-filter: blur(8px) !important;
   border: 1px solid rgba(71, 85, 105, 0.3) !important;
 }
+
+/* app/globals.css - Ajouts pour optimisation mobile tracking */
+
+/* Optimisations Leaflet pour dark mode */
+.dark .leaflet-popup-content-wrapper {
+  @apply bg-gray-800 text-white;
+}
+
+.dark .leaflet-popup-tip {
+  @apply bg-gray-800;
+}
+
+.dark .leaflet-control-zoom a {
+  @apply bg-gray-800 text-white border-gray-600;
+}
+
+.dark .leaflet-control-zoom a:hover {
+  @apply bg-gray-700;
+}
+
+.dark .leaflet-control-attribution {
+  @apply bg-gray-800 text-gray-300;
+}
+
+/* Animations pour les expand/collapse */
+.employee-expand-enter {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-10px);
+}
+
+.employee-expand-enter-active {
+  opacity: 1;
+  max-height: 200px;
+  transform: translateY(0);
+  transition: all 0.3s ease-out;
+}
+
+.employee-expand-exit {
+  opacity: 1;
+  max-height: 200px;
+  transform: translateY(0);
+}
+
+.employee-expand-exit-active {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-10px);
+  transition: all 0.2s ease-in;
+}
+
+/* Amélioration des tooltips sur mobile */
+@media (max-width: 768px) {
+  .leaflet-tooltip {
+    font-size: 10px !important;
+    padding: 2px 4px !important;
+  }
+  
+  .leaflet-popup-content {
+    margin: 8px 10px !important;
+    font-size: 12px !important;
+  }
+  
+  .leaflet-control-zoom {
+    margin-left: 10px !important;
+    margin-top: 10px !important;
+  }
+}
+
+/* Indicateurs de statut animés */
+.status-indicator {
+  position: relative;
+  overflow: hidden;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.status-indicator:hover::before {
+  left: 100%;
+}
+
+/* Optimisations pour les petits écrans */
+@media (max-width: 640px) {
+  .tracking-stats-mobile {
+    font-size: 0.75rem;
+  }
+  
+  .employee-avatar-mobile {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .mission-badge-mobile {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+  }
+}
+
+/* Amélioration du contraste en dark mode */
+.dark .employee-card-hover:hover {
+  @apply bg-gray-750;
+}
+
+.dark .mission-status-pending {
+  @apply bg-yellow-900/30 text-yellow-300 border-yellow-600/30;
+}
+
+.dark .mission-status-progress {
+  @apply bg-green-900/30 text-green-300 border-green-600/30;
+}
+
+.dark .mission-status-approval {
+  @apply bg-orange-900/30 text-orange-300 border-orange-600/30;
+}
+
+/* Animation de pulse pour les indicateurs temps réel */
+.pulse-indicator {
+  animation: pulse-soft 2s infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* Scrollbar custom pour les listes d'employés */
+.employee-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.employee-list::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.employee-list::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+.employee-list::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}

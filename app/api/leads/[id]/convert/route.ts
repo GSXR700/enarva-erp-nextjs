@@ -1,15 +1,16 @@
-// app/api/leads/[leadId]/convert/route.ts
+// app/api/leads/[id]/convert/route.ts
+// 🔧 CORRECTION: Changer `leadId` en `id` pour correspondre à la route
 
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { authOptions } from "@/lib/auth"; // 🔧 CORRECTION: Import depuis @/lib/auth
+import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { LeadStatus } from "@prisma/client";
-import { getNextQuoteNumber } from "@/app/administration/quotes/actions"; // <-- IMPORT THE CENTRALIZED FUNCTION
+import { getNextQuoteNumber } from "@/app/administration/quotes/actions";
 
 export async function POST(
   req: Request,
-  { params }: { params: { leadId: string } }
+  { params }: { params: { id: string } } // 🔧 CORRECTION: Changé de `leadId` à `id`
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,11 +18,11 @@ export async function POST(
       return new NextResponse("Accès non autorisé", { status: 403 });
     }
 
-    if (!params.leadId) {
+    if (!params.id) { // 🔧 CORRECTION: Changé de `params.leadId` à `params.id`
       return new NextResponse("ID du prospect manquant", { status: 400 });
     }
 
-    const lead = await prisma.lead.findUnique({ where: { id: params.leadId } });
+    const lead = await prisma.lead.findUnique({ where: { id: params.id } }); // 🔧 CORRECTION
 
     if (!lead) {
       return new NextResponse("Prospect non trouvé", { status: 404 });
@@ -58,13 +59,13 @@ export async function POST(
         },
       });
 
-      // 3. --- FIX: Use the centralized numbering logic ---
+      // 3. Utiliser la logique centralisée de numérotation
       const newQuoteNumber = await getNextQuoteNumber();
 
       // 4. Créer le devis
       const quote = await tx.quote.create({
         data: {
-          quoteNumber: newQuoteNumber, // Use the new number
+          quoteNumber: newQuoteNumber,
           object: lead.quoteObject ?? `Devis pour ${client.nom}`,
           clientId: client.id,
           items: [],

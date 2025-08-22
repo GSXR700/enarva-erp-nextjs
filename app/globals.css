@@ -63,3 +63,175 @@
 .dark * {
   scrollbar-color: #4a5568 transparent;
 }
+
+/* globals.css - Ajouter ces styles pour le clustering de la carte */
+
+/* 🔧 AMÉLIORATION: Styles pour les clusters d'employés */
+.leaflet-container .cluster-icon {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  border: 3px solid white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  transition: all 0.3s ease;
+}
+
+.leaflet-container .cluster-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+}
+
+/* 🔧 AMÉLIORATION: Animation pour les marqueurs d'employés individuels */
+.leaflet-container .single-employee-icon {
+  transition: all 0.3s ease;
+}
+
+.leaflet-container .single-employee-icon:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* 🔧 AMÉLIORATION: Styles pour les popups personnalisées */
+.leaflet-popup.custom-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.leaflet-popup.custom-popup .leaflet-popup-content {
+  margin: 0 !important;
+  padding: 20px !important;
+  font-family: inherit !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup.custom-popup .leaflet-popup-tip {
+  background: white !important;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 🔧 AMÉLIORATION: Scroll personnalisé pour les popups avec plusieurs employés */
+.leaflet-popup-content .overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.leaflet-popup-content .overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.leaflet-popup-content .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.leaflet-popup-content .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 🔧 AMÉLIORATION: Animation d'apparition des clusters */
+@keyframes clusterAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.leaflet-marker-icon {
+  animation: clusterAppear 0.3s ease-out;
+}
+
+/* 🔧 AMÉLIORATION: Hover effects pour les cartes d'employés */
+.employee-card {
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  padding: 8px;
+  margin: -8px;
+}
+
+.employee-card:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+  transform: translateX(2px);
+}
+
+/* 🔧 AMÉLIORATION: Styles pour les liens de mission */
+.mission-link {
+  transition: all 0.2s ease;
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.mission-link:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  text-decoration: underline;
+}
+
+/* 🔧 AMÉLIORATION: Badge de statut en ligne */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-badge.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.in-progress {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.completed {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+/* 🔧 AMÉLIORATION: Responsive design pour l'overlay d'infos */
+@media (max-width: 640px) {
+  .map-overlay {
+    position: fixed !important;
+    bottom: 20px !important;
+    top: auto !important;
+    right: 20px !important;
+    left: 20px !important;
+    max-width: none !important;
+  }
+  
+  .leaflet-popup-content-wrapper {
+    max-width: calc(100vw - 40px) !important;
+  }
+}
+
+/* 🔧 AMÉLIORATION: Indicateur de nombre d'employés plus visible */
+.employee-count-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}

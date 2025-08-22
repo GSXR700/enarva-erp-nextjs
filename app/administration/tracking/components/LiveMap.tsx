@@ -1,4 +1,5 @@
 // app/administration/tracking/components/LiveMap.tsx
+// 🎨 REDESIGN: Popup moderne et cohérent avec Enarva
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,11 @@ import { MapContainer, TileLayer, Marker, Popup, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import ReactDOMServer from 'react-dom/server';
-import { MapPin, Users, Briefcase, Clock, Navigation } from 'lucide-react';
+import { 
+    MapPin, Users, Briefcase, Clock, Navigation, 
+    Calendar, User, Phone, CheckCircle, AlertCircle,
+    ExternalLink, MapIcon, Timer
+} from 'lucide-react';
 import { useNotifications } from '@/app/context/NotificationContext';
 import Link from 'next/link';
 
@@ -33,9 +38,8 @@ interface EmployeeCluster {
     id: string;
 }
 
-// 🔧 AJOUT: Debug logging
+// Fonction de clustering (reste identique)
 const clusterEmployees = (employees: EmployeeLocation[]): EmployeeCluster[] => {
-    console.log('🔍 Clustering employees:', employees);
     const clusters: EmployeeCluster[] = [];
     const processed = new Set<string>();
     const PROXIMITY_THRESHOLD = 0.001;
@@ -68,33 +72,18 @@ const clusterEmployees = (employees: EmployeeLocation[]): EmployeeCluster[] => {
         });
     });
 
-    console.log('📍 Created clusters:', clusters);
     return clusters;
 };
 
+// 🎨 NOUVEAUX ICÔNES MODERNES
 const createSingleEmployeeIcon = () => {
     return L.divIcon({
         html: ReactDOMServer.renderToString(
             <div className="relative">
-                <MapPin className="text-blue-600" fill="currentColor" size={32} />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-            </div>
-        ),
-        className: 'bg-transparent border-none',
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
-    });
-};
-
-const createClusterIcon = (count: number) => {
-    return L.divIcon({
-        html: ReactDOMServer.renderToString(
-            <div className="relative">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm border-4 border-white shadow-lg">
-                    {count}
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+                    <User className="text-white" size={20} />
                 </div>
-                <Users className="absolute -bottom-1 -right-1 text-blue-600 bg-white rounded-full p-1" size={16} />
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
             </div>
         ),
         className: 'bg-transparent border-none',
@@ -104,80 +93,166 @@ const createClusterIcon = (count: number) => {
     });
 };
 
-const EmployeeCard = ({ employee }: { employee: EmployeeLocation }) => (
-    <div className="border-b border-gray-200 dark:border-gray-600 last:border-b-0 pb-3 last:pb-0 mb-3 last:mb-0">
-        <div className="flex items-center space-x-3">
-            <div className="flex-shrink-0">
-                {employee.image ? (
-                    <img 
-                        src={employee.image} 
-                        alt={employee.name || 'Employé'} 
-                        className="w-8 h-8 rounded-full object-cover"
-                    />
-                ) : (
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                        <Users size={16} className="text-gray-600" />
-                    </div>
-                )}
-            </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {employee.name || 'Employé inconnu'}
-                </p>
-                <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Clock size={12} />
-                    <span>
-                        {employee.lastSeen 
-                            ? `MAJ: ${new Date(employee.lastSeen).toLocaleTimeString('fr-FR', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })}`
-                            : 'Jamais vu'
-                        }
-                    </span>
+const createClusterIcon = (count: number) => {
+    return L.divIcon({
+        html: ReactDOMServer.renderToString(
+            <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg border-4 border-white shadow-xl">
+                    {count}
                 </div>
-                {employee.currentMission && (
-                    <div className="mt-1">
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
+                    <Users className="text-indigo-600" size={14} />
+                </div>
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 animate-ping opacity-30"></div>
+            </div>
+        ),
+        className: 'bg-transparent border-none',
+        iconSize: [48, 48],
+        iconAnchor: [24, 48],
+        popupAnchor: [0, -48],
+    });
+};
+
+// 🎨 FONCTION HELPER POUR LES STATUS
+const getStatusStyle = (status: string) => {
+    switch (status) {
+        case 'PENDING':
+            return {
+                bg: 'bg-amber-100 dark:bg-amber-900/30',
+                text: 'text-amber-800 dark:text-amber-200',
+                icon: <Clock size={14} className="text-amber-600" />,
+                label: 'En Attente'
+            };
+        case 'IN_PROGRESS':
+            return {
+                bg: 'bg-blue-100 dark:bg-blue-900/30',
+                text: 'text-blue-800 dark:text-blue-200',
+                icon: <Timer size={14} className="text-blue-600" />,
+                label: 'En Cours'
+            };
+        case 'COMPLETED':
+            return {
+                bg: 'bg-green-100 dark:bg-green-900/30',
+                text: 'text-green-800 dark:text-green-200',
+                icon: <CheckCircle size={14} className="text-green-600" />,
+                label: 'Terminée'
+            };
+        default:
+            return {
+                bg: 'bg-gray-100 dark:bg-gray-800',
+                text: 'text-gray-800 dark:text-gray-200',
+                icon: <AlertCircle size={14} className="text-gray-600" />,
+                label: status
+            };
+    }
+};
+
+// 🎨 COMPOSANT CARTE EMPLOYÉ REDESIGNÉ
+const ModernEmployeeCard = ({ employee }: { employee: EmployeeLocation }) => {
+    const statusStyle = employee.currentMission ? getStatusStyle(employee.currentMission.status) : null;
+    const timeAgo = employee.lastSeen ? 
+        Math.floor((Date.now() - new Date(employee.lastSeen).getTime()) / (1000 * 60)) : null;
+
+    return (
+        <div className="group bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800 dark:to-slate-700 rounded-xl p-4 border border-slate-200 dark:border-slate-600 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+            {/* Header avec avatar et nom */}
+            <div className="flex items-center space-x-3 mb-3">
+                <div className="relative">
+                    {employee.image ? (
+                        <img 
+                            src={employee.image} 
+                            alt={employee.name || 'Employé'} 
+                            className="w-12 h-12 rounded-full object-cover border-3 border-white shadow-md"
+                        />
+                    ) : (
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center border-3 border-white shadow-md">
+                            <User size={20} className="text-white" />
+                        </div>
+                    )}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-slate-900 dark:text-white text-base truncate">
+                        {employee.name || 'Employé'}
+                    </h4>
+                    <div className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
+                        <Clock size={12} />
+                        <span>
+                            {timeAgo !== null ? (
+                                timeAgo < 1 ? "À l'instant" : 
+                                timeAgo < 60 ? `Il y a ${timeAgo}min` : 
+                                `Il y a ${Math.floor(timeAgo / 60)}h`
+                            ) : 'Hors ligne'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mission Info (si présente) */}
+            {employee.currentMission ? (
+                <div className="space-y-3">
+                    <div className={`${statusStyle?.bg} ${statusStyle?.text} px-3 py-2 rounded-lg flex items-center space-x-2`}>
+                        {statusStyle?.icon}
+                        <span className="font-medium text-sm">{statusStyle?.label}</span>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+                        <div className="flex items-start space-x-2 mb-2">
+                            <Briefcase size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-900 dark:text-white text-sm leading-tight">
+                                    {employee.currentMission.title}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-400 mb-3">
+                            <Calendar size={12} />
+                            <span>
+                                {new Date(employee.currentMission.scheduledStart).toLocaleTimeString('fr-FR', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                })} - {new Date(employee.currentMission.scheduledEnd).toLocaleTimeString('fr-FR', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                })}
+                            </span>
+                        </div>
+
                         <Link 
                             href={`/administration/missions/${employee.currentMission.id}`}
-                            className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                            className="inline-flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors group"
                         >
-                            <Briefcase size={12} />
-                            <span className="truncate max-w-[150px]">
-                                {employee.currentMission.title}
-                            </span>
+                            <span>Voir la mission</span>
+                            <ExternalLink size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                         </Link>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                            Status: {employee.currentMission.status}
-                        </div>
                     </div>
-                )}
-            </div>
+                </div>
+            ) : (
+                <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 text-center">
+                    <div className="text-slate-400 dark:text-slate-500 mb-1">
+                        <MapIcon size={20} className="mx-auto" />
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Pas de mission active
+                    </p>
+                </div>
+            )}
         </div>
-    </div>
-);
+    );
+};
 
+// 🎨 COMPOSANT PRINCIPAL LIVEMAP
 export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocation[] }) {
     const [employees, setEmployees] = useState(initialEmployees);
     const { socket } = useNotifications();
 
-    // 🔧 AJOUT: Debug logging
     useEffect(() => {
-        console.log('🗺️ LiveMap: Initial employees:', initialEmployees);
-        console.log('🗺️ LiveMap: Employees with location:', initialEmployees.filter(emp => emp.currentLatitude && emp.currentLongitude));
-    }, [initialEmployees]);
+        if (!socket) return;
 
-    useEffect(() => {
-        if (!socket) {
-            console.log('🔌 LiveMap: No socket available');
-            return;
-        }
-
-        console.log('🔌 LiveMap: Socket connected, joining tracking room');
         socket.emit('join-tracking-room');
 
         const handleLocationUpdate = (updatedEmployee: EmployeeLocation) => {
-            console.log('📍 LiveMap: Location update received:', updatedEmployee);
             setEmployees(prevEmployees => {
                 const existingEmployee = prevEmployees.find(emp => emp.id === updatedEmployee.id);
                 if (existingEmployee) {
@@ -197,10 +272,8 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
         };
     }, [socket]);
 
-    const defaultPosition: [number, number] = [33.5731, -7.5898]; // Casablanca
+    const defaultPosition: [number, number] = [33.5731, -7.5898];
     const employeeClusters = clusterEmployees(employees);
-
-    // 🔧 AJOUT: Si pas d'employés, afficher un marqueur de test
     const hasEmployees = employeeClusters.length > 0;
 
     return (
@@ -223,31 +296,6 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 
-                {/* 🔧 AJOUT: Marqueur de test si pas d'employés */}
-                {!hasEmployees && (
-                    <Marker
-                        position={defaultPosition}
-                        icon={L.divIcon({
-                            html: ReactDOMServer.renderToString(
-                                <div className="bg-red-500 text-white p-2 rounded">
-                                    TEST - Pas d'employés
-                                </div>
-                            ),
-                            className: 'bg-transparent border-none',
-                            iconSize: [150, 40],
-                            iconAnchor: [75, 20],
-                        })}
-                    >
-                        <Popup>
-                            <div className="text-center">
-                                <strong>Mode Debug</strong><br/>
-                                Aucun employé avec localisation trouvé<br/>
-                                Employés total: {employees.length}
-                            </div>
-                        </Popup>
-                    </Marker>
-                )}
-                
                 {employeeClusters.map(cluster => {
                     const isSingleEmployee = cluster.employees.length === 1;
                     const employee = cluster.employees[0];
@@ -261,41 +309,60 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                                 : createClusterIcon(cluster.employees.length)
                             }
                         >
-                            <Popup maxWidth={300} className="custom-popup">
-                                <div className="max-h-80 overflow-y-auto">
+                            <Popup 
+                                maxWidth={350} 
+                                className="modern-popup"
+                                closeButton={true}
+                            >
+                                <div className="max-h-96 overflow-y-auto">
                                     {isSingleEmployee ? (
-                                        <div>
-                                            <h3 className="font-semibold text-lg mb-3 text-gray-800 dark:text-white">
-                                                📍 Employé sur le terrain
-                                            </h3>
-                                            <EmployeeCard employee={employee} />
+                                        <div className="p-2">
+                                            <div className="flex items-center space-x-2 mb-4">
+                                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                                                    Employé en Direct
+                                                </h3>
+                                            </div>
+                                            <ModernEmployeeCard employee={employee} />
                                         </div>
                                     ) : (
-                                        <div>
-                                            <h3 className="font-semibold text-lg mb-3 text-gray-800 dark:text-white flex items-center">
-                                                <Users className="mr-2" size={20} />
-                                                {cluster.employees.length} Employés ici
-                                            </h3>
-                                            <div className="space-y-3">
+                                        <div className="p-2">
+                                            <div className="flex items-center space-x-2 mb-4">
+                                                <div className="w-3 h-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"></div>
+                                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                                                    {cluster.employees.length} Employés Ici
+                                                </h3>
+                                            </div>
+                                            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                                                 {cluster.employees.map(emp => (
-                                                    <EmployeeCard key={emp.id} employee={emp} />
+                                                    <ModernEmployeeCard key={emp.id} employee={emp} />
                                                 ))}
                                             </div>
                                         </div>
                                     )}
                                     
-                                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                            <Navigation size={12} className="mr-1" />
-                                            {cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}
-                                        </p>
+                                    {/* Footer avec coordonnées */}
+                                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-600 px-2">
+                                        <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+                                            <Navigation size={12} />
+                                            <span>
+                                                {cluster.latitude.toFixed(4)}, {cluster.longitude.toFixed(4)}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </Popup>
                             
                             {isSingleEmployee && (
-                                <Tooltip permanent direction="top" offset={[0, -35]} className="bg-primary text-white px-2 py-1 rounded">
-                                    {employee.name?.split(' ')[0] || 'Employé'}
+                                <Tooltip 
+                                    permanent 
+                                    direction="top" 
+                                    offset={[0, -35]} 
+                                    className="modern-tooltip"
+                                >
+                                    <div className="bg-slate-900 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                        {employee.name?.split(' ')[0] || 'Employé'}
+                                    </div>
                                 </Tooltip>
                             )}
                         </Marker>
@@ -303,49 +370,37 @@ export function LiveMap({ initialEmployees }: { initialEmployees: EmployeeLocati
                 })}
             </MapContainer>
 
-            {/* Overlay avec statistiques + debug */}
-            <div className="absolute top-4 right-4 bg-white dark:bg-dark-surface rounded-lg shadow-lg p-4 z-10 max-w-xs">
-                <h3 className="font-semibold text-gray-800 dark:text-dark-text mb-3 flex items-center">
-                    <Users className="mr-2" size={16} />
-                    Debug Info
+            {/* Overlay statistiques redesigné */}
+            <div className="absolute top-4 right-4 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-5 z-10 min-w-[280px]">
+                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3 animate-pulse"></div>
+                    Équipes Actives
                 </h3>
-                <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-dark-subtle">Total employés:</span>
-                        <span className="font-medium text-gray-800 dark:text-dark-text">
-                            {employees.length}
-                        </span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-dark-subtle">Avec localisation:</span>
-                        <span className="font-medium text-gray-800 dark:text-dark-text">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                             {employees.filter(emp => emp.currentLatitude && emp.currentLongitude).length}
-                        </span>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Employés</div>
                     </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-dark-subtle">Clusters:</span>
-                        <span className="font-medium text-gray-800 dark:text-dark-text">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                             {employeeClusters.length}
-                        </span>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Localisations</div>
                     </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-dark-subtle">En mission:</span>
-                        <span className="font-medium text-green-600">
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                             {employees.filter(emp => emp.currentMission).length}
-                        </span>
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">En Mission</div>
                     </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-dark-subtle">Socket:</span>
-                        <span className={`font-medium ${socket ? 'text-green-600' : 'text-red-600'}`}>
-                            {socket ? 'Connecté' : 'Déconnecté'}
-                        </span>
+                    <div className="text-center">
+                        <div className={`text-2xl font-bold ${socket ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {socket ? '●' : '○'}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Temps Réel</div>
                     </div>
-                </div>
-                
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                    <p className="text-xs text-gray-500 dark:text-dark-subtle">
-                        🔍 Vérifiez la console pour les logs détaillés
-                    </p>
                 </div>
             </div>
         </div>

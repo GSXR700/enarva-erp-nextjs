@@ -9,21 +9,30 @@ import { LeadCanal, LeadType, LeadStatus } from "@prisma/client";
 interface LeadFormProps {
   users: { id: string; name: string | null }[];
   subcontractors: { id: string; name: string }[];
-  lead?: any; // Pour l'édition future
+  lead?: any; // Pour l'édition
+  initialData?: any; // Pour la compatibilité avec l'ancien code
+  onFormSubmit?: () => void; // Pour la compatibilité avec l'ancien code
 }
 
-export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
+export function LeadForm({ users, subcontractors, lead, initialData, onFormSubmit }: LeadFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Utiliser lead ou initialData pour la compatibilité
+  const editData = lead || initialData;
+  const isEditMode = !!editData;
 
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/leads', {
-        method: 'POST',
+      const url = isEditMode ? `/api/leads/${editData.id}` : '/api/leads';
+      const method = isEditMode ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -44,12 +53,19 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(errorData || 'Erreur lors de la création du prospect');
+        throw new Error(errorData || `Erreur lors de ${isEditMode ? 'la modification' : 'la création'} du prospect`);
       }
 
-      const newLead = await response.json();
-      router.push('/administration/leads');
-      router.refresh();
+      const result = await response.json();
+      
+      // Si c'est une fonction callback (ancien comportement)
+      if (onFormSubmit) {
+        onFormSubmit();
+      } else {
+        // Nouveau comportement - redirection automatique
+        router.push('/administration/leads');
+        router.refresh();
+      }
 
     } catch (error) {
       console.error('Erreur:', error);
@@ -77,7 +93,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             id="nom"
             name="nom"
             required
-            defaultValue={lead?.nom || ''}
+            defaultValue={editData?.nom || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="Nom complet ou entreprise"
           />
@@ -92,7 +108,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             id="quoteObject"
             name="quoteObject"
             required
-            defaultValue={lead?.quoteObject || ''}
+            defaultValue={editData?.quoteObject || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="Ex: Nettoyage bureaux, Entretien villa..."
           />
@@ -106,7 +122,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             type="tel"
             id="telephone"
             name="telephone"
-            defaultValue={lead?.telephone || ''}
+            defaultValue={editData?.telephone || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="+212 6XX XXX XXX"
           />
@@ -120,7 +136,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             type="email"
             id="email"
             name="email"
-            defaultValue={lead?.email || ''}
+            defaultValue={editData?.email || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="contact@exemple.com"
           />
@@ -133,7 +149,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
           <select
             id="canal"
             name="canal"
-            defaultValue={lead?.canal || 'WHATSAPP'}
+            defaultValue={editData?.canal || 'WHATSAPP'}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
           >
             <option value="WHATSAPP">WhatsApp</option>
@@ -154,7 +170,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
           <select
             id="type"
             name="type"
-            defaultValue={lead?.type || 'BtoC'}
+            defaultValue={editData?.type || 'BtoC'}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
           >
             <option value="BtoC">BtoC (Particulier)</option>
@@ -164,22 +180,28 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
           </select>
         </div>
 
-        <div>
-          <label htmlFor="statut" className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
-            Statut Initial
-          </label>
-          <select
-            id="statut"
-            name="statut"
-            defaultValue={lead?.statut || 'new_lead'}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
-          >
-            <option value="new_lead">Nouveau Prospect</option>
-            <option value="to_qualify">À Qualifier</option>
-            <option value="qualified">Qualifié</option>
-            <option value="visit_scheduled">Visite Planifiée</option>
-          </select>
-        </div>
+        {isEditMode && (
+          <div>
+            <label htmlFor="statut" className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
+              Statut
+            </label>
+            <select
+              id="statut"
+              name="statut"
+              defaultValue={editData?.statut || 'new_lead'}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
+            >
+              <option value="new_lead">Nouveau Prospect</option>
+              <option value="to_qualify">À Qualifier</option>
+              <option value="qualified">Qualifié</option>
+              <option value="visit_scheduled">Visite Planifiée</option>
+              <option value="quote_sent">Devis Envoyé</option>
+              <option value="quote_accepted">Devis Accepté</option>
+              <option value="quote_refused">Devis Refusé</option>
+              <option value="client_confirmed">Client Confirmé</option>
+            </select>
+          </div>
+        )}
 
         <div>
           <label htmlFor="assignedToId" className="block text-sm font-medium text-gray-700 dark:text-dark-text mb-2">
@@ -188,7 +210,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
           <select
             id="assignedToId"
             name="assignedToId"
-            defaultValue={lead?.assignedToId || ''}
+            defaultValue={editData?.assignedToId || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
           >
             <option value="">Non assigné</option>
@@ -208,7 +230,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             type="date"
             id="date_intervention"
             name="date_intervention"
-            defaultValue={lead?.date_intervention ? new Date(lead.date_intervention).toISOString().split('T')[0] : ''}
+            defaultValue={editData?.date_intervention ? new Date(editData.date_intervention).toISOString().split('T')[0] : ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
           />
         </div>
@@ -221,7 +243,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             type="text"
             id="source"
             name="source"
-            defaultValue={lead?.source || ''}
+            defaultValue={editData?.source || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="Ex: Publicité Facebook, Référencement Google, Bouche à oreille..."
           />
@@ -235,7 +257,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
             id="commentaire"
             name="commentaire"
             rows={3}
-            defaultValue={lead?.commentaire || ''}
+            defaultValue={editData?.commentaire || ''}
             className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-dark-surface text-gray-900 dark:text-dark-text"
             placeholder="Notes additionnelles sur le prospect..."
           />
@@ -245,7 +267,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
       <div className="flex justify-end space-x-4">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => onFormSubmit ? onFormSubmit() : router.back()}
           className="px-4 py-2 text-gray-600 dark:text-dark-subtle hover:text-gray-800 dark:hover:text-dark-text transition"
         >
           Annuler
@@ -256,7 +278,7 @@ export function LeadForm({ users, subcontractors, lead }: LeadFormProps) {
           className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {lead ? 'Modifier' : 'Créer'} le Prospect
+          {isEditMode ? 'Modifier' : 'Créer'} le Prospect
         </button>
       </div>
     </form>

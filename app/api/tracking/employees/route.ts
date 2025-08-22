@@ -1,4 +1,5 @@
 // app/api/tracking/employees/route.ts
+// 🔧 CORRECTION COMPLÈTE: API compatible avec nouveau LiveMap
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -43,17 +44,17 @@ export async function GET() {
       return NextResponse.json([]);
     }
 
-    // 2. Pour chaque user qui a un employee, récupérer ses missions actives
+    // 2. Pour chaque user qui a un employee, récupérer sa mission active UNIQUE
     const enrichedUsers = await Promise.all(
       usersWithLocation.map(async (user) => {
-        let missions: any[] = [];
+        let currentMission = null;
 
         if (user.employee) {
-          // Récupérer TOUTES les missions actives de cet employé (pas juste une)
-          const activeMissions = await prisma.mission.findMany({
+          // Récupérer LA mission active de cet employé (une seule)
+          const activeMission = await prisma.mission.findFirst({
             where: {
               assignedToId: user.employee.id,
-              status: { in: ['PENDING', 'IN_PROGRESS', 'APPROBATION'] }
+              status: { in: ['PENDING', 'IN_PROGRESS'] }
             },
             select: {
               id: true,
@@ -62,47 +63,31 @@ export async function GET() {
               status: true,
               scheduledStart: true,
               scheduledEnd: true,
-              actualStart: true,
-              actualEnd: true,
-              notes: true,
               order: {
                 select: {
-                  id: true,
-                  orderNumber: true,
                   client: {
-                    select: { 
-                      id: true,
-                      nom: true, 
-                      adresse: true,
-                      telephone: true
-                    }
+                    select: { nom: true }
                   }
                 }
               }
             },
             orderBy: [
-              { status: 'asc' }, // Missions IN_PROGRESS en premier
+              { status: 'asc' }, // IN_PROGRESS en premier
               { scheduledStart: 'asc' }
             ]
           });
 
-          missions = activeMissions.map(mission => ({
-            id: mission.id,
-            title: mission.title || 
-                   mission.workOrderNumber || 
-                   `Mission chez ${mission.order?.client?.nom || 'Client'}`,
-            status: mission.status,
-            scheduledStart: mission.scheduledStart,
-            scheduledEnd: mission.scheduledEnd,
-            actualStart: mission.actualStart,
-            actualEnd: mission.actualEnd,
-            notes: mission.notes,
-            order: mission.order ? {
-              id: mission.order.id,
-              orderNumber: mission.order.orderNumber,
-              client: mission.order.client
-            } : null
-          }));
+          if (activeMission) {
+            currentMission = {
+              id: activeMission.id,
+              title: activeMission.title || 
+                     activeMission.workOrderNumber || 
+                     `Mission chez ${activeMission.order?.client?.nom || 'Client'}`,
+              status: activeMission.status,
+              scheduledStart: activeMission.scheduledStart,
+              scheduledEnd: activeMission.scheduledEnd
+            };
+          }
         }
 
         // Déterminer le nom de l'employé
@@ -117,31 +102,25 @@ export async function GET() {
           currentLatitude: user.currentLatitude,
           currentLongitude: user.currentLongitude,
           lastSeen: user.lastSeen,
-          role: user.role,
-          missions: missions,
-          // Informations de compatibilité pour le frontend
-          hasActiveMission: missions.some(m => m.status === 'IN_PROGRESS'),
-          missionCount: missions.length,
-          employeeId: user.employee?.id,
-          userId: user.id
+          currentMission // ← AJOUT CRUCIAL pour compatibility LiveMap
         };
       })
     );
 
     // Trier : employés avec missions actives en premier
     const sortedUsers = enrichedUsers.sort((a, b) => {
-      if (a.hasActiveMission && !b.hasActiveMission) return -1;
-      if (!a.hasActiveMission && b.hasActiveMission) return 1;
-      return b.missionCount - a.missionCount;
+      if (a.currentMission && !b.currentMission) return -1;
+      if (!a.currentMission && b.currentMission) return 1;
+      return 0;
     });
 
-    const usersWithMissions = sortedUsers.filter(user => user.missions.length > 0);
+    const usersWithMissions = sortedUsers.filter(user => user.currentMission);
     console.log(`🎯 API: ${usersWithMissions.length} users have active missions`);
     console.log(`📍 API: Total ${sortedUsers.length} tracked users (${usersWithMissions.length} with missions)`);
 
     // Log pour debug
     sortedUsers.forEach(user => {
-      console.log(`👤 ${user.name}: ${user.missions.length} missions, status: ${user.missions.map(m => m.status).join(', ')}`);
+      console.log(`👤 ${user.name}: ${user.currentMission ? 'HAS' : 'NO'} active mission${user.currentMission ? ` (${user.currentMission.status})` : ''}`);
     });
 
     return NextResponse.json(sortedUsers, {
